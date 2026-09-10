@@ -342,10 +342,38 @@ function diasPagoPorCliente(remisiones){
   })).sort((a,b)=>b.diasProm-a.diasProm);
 }
 
+// ── Propuesta 5 (mejoras ecosistema 2026-09-10): utilidad de la operación ──
+// "Después del descuento y los regalos, ¿cuánto me deja esta venta?" -- SOLO
+// informativo, no cambia el IVA ni el total de la remisión.
+//   ingreso = subtotal SIN IVA ya descontado (el IVA no es tuyo: se entera).
+//   costo   = cantidad × costoEfectivo() de cada pieza que SALE, regalos
+//             incluidos (se regalan pero sí te costaron). costoEfectivo ya
+//             aplica la regla de Miguel: venta con IVA → costo sin IVA,
+//             venta al 0% → costo con IVA.
+// Una pieza sin costo capturado NO cuenta como $0: marca completa=false para
+// que la pantalla diga "estimación incompleta" en vez de inflar la utilidad.
+function utilidadOperacion(arr, descPct){
+  const t=_calcTot(arr||[],descPct,false);
+  const ingreso=t.sub-t.desc;
+  let costo=0, sinCosto=0;
+  (arr||[]).forEach(it=>{
+    const q=+it.qty||0;
+    if(!(q>0)) return;
+    if(!(+it.precio>0)&&!it.regalo) return;   // mismo filtro de renglón activo que registrarTodo
+    const c=costoEfectivo(it);
+    if(c>0) costo+=q*c; else sinCosto++;
+  });
+  const r2=n=>Math.round(n*100)/100;
+  const utilidad=ingreso-costo;
+  return {ingreso:r2(ingreso), costo:r2(costo), utilidad:r2(utilidad),
+          margenPct: ingreso>0 ? Math.round(utilidad/ingreso*1000)/10 : null,
+          sinCosto, completa: sinCosto===0};
+}
+
 // Exportar para los tests de Node sin afectar al navegador (allí no existe `module`).
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { esc, escAttr, fmt, n2l, words, _calcTot, costoEfectivo, pagoValido, telWA, msgCobroWA, tasaIvaLbl,
                       rentabilidadPorProducto, simulaEscenarioPrecio,
                       parseFechaMX, pagosValidosDe, corteDeCaja, costosQueSubieron,
-                      deudaCliente, diasPagoPorCliente };
+                      deudaCliente, diasPagoPorCliente, utilidadOperacion };
 }
