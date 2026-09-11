@@ -88,6 +88,24 @@ estado();
 // nada. Bloqueado aquí: mientras no haya sesión, este diálogo no se puede
 // descartar sin completar la vinculación de verdad.
 $('#vincular').addEventListener('cancel', e => e.preventDefault());
+// Segundo candado, y el que de verdad aguanta (2026-09-11, probado contra
+// el sitio real): el preventDefault de arriba NO siempre se respeta.
+// Chrome tiene una regla anti-abuso (CloseWatcher) por la que un diálogo
+// abierto SIN que el usuario haya interactuado todavía con la página --
+// justo este caso, se abre solo al cargar -- no puede bloquear el Escape,
+// y se cierra aunque 'cancel' esté cancelado.
+//
+// Se vigila el atributo `open` del <dialog>, NO el evento 'close': medido
+// en el navegador real, ese evento no llega de forma confiable cuando el
+// cierre lo fuerza el navegador, así que un listener de 'close' dejaba el
+// hueco abierto igual. El atributo sí cambia siempre, se cierre como se
+// cierre (Escape, botón atrás de Android, o lo que venga después).
+//
+// Al vincular con éxito, vincular() guarda la sesión ANTES de llamar
+// close(), así que aquí ya hay sesión y el diálogo se queda cerrado.
+new MutationObserver(() => {
+  if (!$('#vincular').open && !localStorage.getItem(SESION_KEY)) $('#vincular').showModal();
+}).observe($('#vincular'), { attributes: true, attributeFilter: ['open'] });
 if (!localStorage.getItem(SESION_KEY)) $('#vincular').showModal();
 
 // Registro + actualización activa: el navegador por su cuenta solo revisa
