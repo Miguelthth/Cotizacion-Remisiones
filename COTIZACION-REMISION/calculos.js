@@ -370,9 +370,30 @@ function utilidadOperacion(arr, descPct){
           sinCosto, completa: sinCosto===0};
 }
 
+// Regla de DESCUENTO GLOBAL válido (M-05, auditoría de robustez 2026-09-10).
+// Con 150% de descuento sobre un producto de $100 al 8% el celular llegaba a crear
+// una remisión de −$54, y el servidor convertía ese total negativo a cero en
+// silencio: además de ser un importe incoherente, celular y servidor dejaban de
+// cuadrar. Los límites min/max del campo HTML no bastan — no impiden que los
+// botones ejecuten el guardado. La usan el cliente (antes de calcular y registrar)
+// y el servidor (última línea de defensa contra un payload corrupto o reenviado).
+function descuentoValido(descPct){
+  const d = +descPct;
+  return Number.isFinite(d) && d >= 0 && d <= 100;
+}
+
+// Un renglón cobrable necesita cantidad y precio finitos y no negativos.
+// Infinity/NaN entran por un campo pegado a mano o por una cola corrupta.
+function renglonValido(it){
+  if (!it) return false;
+  const q = +it.qty, p = +it.precio;
+  return Number.isFinite(q) && q >= 0 && Number.isFinite(p) && p >= 0;
+}
+
 // Exportar para los tests de Node sin afectar al navegador (allí no existe `module`).
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { esc, escAttr, fmt, n2l, words, _calcTot, costoEfectivo, pagoValido, telWA, msgCobroWA, tasaIvaLbl,
+  module.exports = { esc, escAttr, fmt, n2l, words, _calcTot, costoEfectivo, pagoValido,
+                      descuentoValido, renglonValido, telWA, msgCobroWA, tasaIvaLbl,
                       rentabilidadPorProducto, simulaEscenarioPrecio,
                       parseFechaMX, pagosValidosDe, corteDeCaja, costosQueSubieron,
                       deudaCliente, diasPagoPorCliente, utilidadOperacion };

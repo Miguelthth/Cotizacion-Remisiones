@@ -491,8 +491,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 <div id="menuMas" class="menu-mas">
   <button onclick="_cerrarMenuMas();window.print()">🖨️ Imprimir</button>
   <button onclick="_cerrarMenuMas();verNegocio()">📊 Negocio</button>
-  <button onclick="_cerrarMenuMas();cierreDelDia()" title="Cierre del día: vendido/cobrado por método/pendiente">🧾 Cierre del día</button>
-  <button onclick="_cerrarMenuMas();abrirCorteCaja()" title="Cuánto efectivo debe haber en la caja en este turno">🧮 Corte de caja</button>
+  <button onclick="_cerrarMenuMas();cierreDelDia()" title="Vendido/cobrado por método/pendiente -- solo de ESTE celular, no de todo el negocio">🧾 Cierre del día (este celular)</button>
+  <button onclick="_cerrarMenuMas();abrirCorteCaja()" title="Efectivo cobrado en ESTE celular en el turno -- no incluye fondo, retiros ni otros dispositivos">🧮 Corte de caja (este celular)</button>
   <button onclick="_cerrarMenuMas();abrirCostosSubieron()" title="Productos cuyo costo real subió y su precio no">📈 Costos que subieron</button>
   <button onclick="_cerrarMenuMas();abrirSimulador()" title="Simula margen/utilidad con un precio nuevo, sin tocar el catálogo real">💲 Simulador</button>
   <button onclick="_cerrarMenuMas();abrirEmpresa()">🏢 Mi empresa</button>
@@ -597,8 +597,21 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <div class="fr"><span class="fl">C.P.</span><div class="fv"><input id="c_cp" type="text" placeholder="—" oninput="autosave()"></div></div>
       <div class="cs">
         <div class="ci"><div class="ci-icon">📞</div><div><div class="ci-lbl">Teléfono</div><div class="ci-val"><input id="c_tel" type="text" placeholder="—" oninput="autosave()"></div></div></div>
-        
-        
+      </div>
+      <!-- Enviar por correo (mejora 2026-09-10, doc COTIZADOR.docx): se marca sola si el
+           cliente YA tiene correo; si no, avisa y manda a "➕ Más datos" a capturarlo
+           (que ya se guarda en Clientes Maestro al registrar la remisión). -->
+      <div class="cs" style="margin-top:6px;padding-top:10px">
+        <div class="ci" style="width:100%">
+          <div class="ci-icon">✉️</div>
+          <div style="flex:1">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:2px">
+              <input type="checkbox" id="chkEnviarCorreo" onchange="_onChkEnviarCorreoClick()">
+              <span class="ci-lbl" style="margin:0">Enviar por correo al cliente</span>
+            </label>
+            <div id="correoEstadoTxt" style="font-size:11px;color:var(--muted)"></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="card">
@@ -736,10 +749,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <div id="pagosListaCompacta" style="margin-bottom:14px"></div>
     <input type="checkbox" id="checkPagado" style="display:none">
     <div id="abonoArea">
-      <div style="display:flex;gap:8px;margin-bottom:10px;align-items:stretch">
-        <input id="montoAbono" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="$ Monto a abonar" class="monto-input-grande" style="flex:1;margin-bottom:0">
+      <div style="display:flex;gap:8px;margin-bottom:2px;align-items:stretch">
+        <input id="montoAbono" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="$ Monto a abonar" class="monto-input-grande" style="flex:1;margin-bottom:0" oninput="_actualizarPreviewMonto('montoAbono','montoAbonoFmt')">
         <button class="btn btn-g" style="flex-shrink:0;padding:12px 16px;font-size:13px;font-weight:700;white-space:nowrap;border-radius:10px" onclick="setAtajoMonto(1)">Total →</button>
       </div>
+      <!-- doc COTIZADOR.docx 2026-09-10: el input de dinero no admite "$1,234.56" sin
+           romper parseFloat (comas/signo) -- esta línea muestra el monto YA formateado
+           en vivo, sin tocar cómo se lee el número en ningún lado del código. -->
+      <div id="montoAbonoFmt" style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px;min-height:16px"></div>
       <label class="no-print" style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:2px">💳 Método de pago <span style="font-weight:400">(cómo pagó — distinto de las condiciones de arriba)</span></label>
       <select id="metodoAbono" class="no-print" style="width:100%;border:2px solid var(--border);border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:8px;background:#fff"><!-- opciones desde CONFIG: OPCIONES_METODO_PAGO --></select>
       <input id="notasAbono" class="no-print" type="text" placeholder="Notas del pago (opcional)" style="width:100%;border:2px solid var(--border);border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:10px">
@@ -791,9 +808,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <span style="font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px">Saldo pendiente</span>
       <span style="font-size:22px;font-weight:800;color:#c0392b" id="prSaldo">$0.00</span>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
+    <div style="display:flex;gap:8px;margin-bottom:2px">
       <input id="prMonto" type="number" inputmode="decimal" min="0.01" step="0.01"
-        placeholder="$ Monto a pagar"
+        placeholder="$ Monto a pagar" oninput="_actualizarPreviewMonto('prMonto','prMontoFmt')"
         style="flex:1;border:2px solid var(--border);border-radius:10px;padding:12px;font-size:15px;font-family:inherit;outline:none"
         onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
       <button onclick="prPonertotal()"
@@ -801,6 +818,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
         ↓ Total
       </button>
     </div>
+    <div id="prMontoFmt" style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px;min-height:16px"></div>
     <div style="margin-bottom:10px">
       <label style="font-size:11px;color:var(--muted);font-weight:600">Método de pago</label>
       <select id="prMetodo" style="width:100%;border:2px solid var(--border);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;margin-top:3px;background:#fff"><!-- opciones desde CONFIG: OPCIONES_METODO_PAGO --></select>
@@ -965,14 +983,10 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
     <div style="font-weight:700;font-size:13px;margin-bottom:4px">🔧 Conexión avanzada (normalmente NO hace falta tocar esto)</div>
     <div class="info-box" style="margin-bottom:10px">El sistema ya viene conectado de fábrica a tu servidor con el <strong>Token de acceso</strong> de arriba — estos dos campos son solo por si necesitas apuntar a OTRO Apps Script distinto al de siempre (caso raro). Déjalos vacíos si no sabes de qué se trata.</div>
-    <div class="fg"><label>🔗 URL del Apps Script — Catálogos (opcional)</label><input id="gs_url" type="text" placeholder="https://script.google.com/macros/s/.../exec" title="Solo si quieres cargar catálogo/clientes de un Apps Script DISTINTO al de siempre"><div style="font-size:11px;color:var(--muted);margin-top:3px">Carga catálogo y clientes desde ese ERP en vez del de siempre</div></div>
+    <div class="fg"><label>🔗 URL del Apps Script (opcional)</label><input id="gs_url" type="text" placeholder="https://script.google.com/macros/s/.../exec" title="Solo si quieres apuntar a un Apps Script DISTINTO al de siempre (catálogo, clientes, PDFs y folios viajan por la misma URL)"><div style="font-size:11px;color:var(--muted);margin-top:3px">Carga catálogo/clientes y guarda PDFs/folios en ese ERP en vez del de siempre</div></div>
     <div id="gsStatus" style="font-size:12.5px;min-height:18px;margin-bottom:12px"></div>
     <div style="display:flex;gap:9px"><button class="btn btn-p" style="flex:1;justify-content:center;padding:11px" onclick="conectarGS()">🔄 Conectar y cargar</button><button class="btn" style="background:var(--bg);color:var(--muted)" onclick="limpiarGS()">🗑️ Desconectar</button></div>
     <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">Última sync: <span id="gsSync">—</span></div>
-    <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
-      <div class="fg"><label>☁️ URL del Apps Script — Drive &amp; Folios (opcional)</label><input id="drive_url" type="text" placeholder="https://script.google.com/macros/s/.../exec" title="Solo si quieres guardar PDFs/folios en un Apps Script DISTINTO al de siempre" oninput="guardarDriveUrl()"><div style="font-size:11px;color:var(--muted);margin-top:3px">Guarda PDFs en Drive y sincroniza el contador de folios en ese ERP</div></div>
-      <div id="driveStatus" style="font-size:12px;color:var(--muted);min-height:16px"></div>
-    </div>
   </div>
 
   <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
@@ -1023,10 +1037,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   <div class="modal-hd"><div class="modal-title">📦 Agregar Nuevo Producto</div><button class="mx" onclick="closeOv('ovNuevoProducto')">✕</button></div>
   <div class="fg"><label>Código *</label><input id="np_clave" type="text" placeholder="PROD-001"></div>
   <div class="fg"><label>Descripción *</label><input id="np_desc" type="text" placeholder="Descripción del producto"></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-    <div class="fg"><label>Precio unitario *</label><input id="np_precio" type="number" min="0" step="0.01" placeholder="0.00"></div>
-    <div class="fg"><label>IVA (%)</label><input id="np_iva" type="number" min="0" max="100" value="16" placeholder="16"></div>
-  </div>
+  <div class="fg"><label>Precio unitario *</label><input id="np_precio" type="number" min="0" step="0.01" placeholder="0.00"></div>
+  <div style="font-size:11.5px;color:var(--muted);margin-bottom:4px">🏷️ Lleva el IVA de esta remisión (<span id="npIvaInfo">0</span>%) — cámbialo con el botón IVA de arriba si hace falta.</div>
   <div style="font-size:11.5px;color:var(--muted);margin-bottom:12px" id="npTargetInfo"></div>
   <div style="display:flex;gap:9px">
     <button class="btn btn-p" style="flex:1;justify-content:center;padding:11px" onclick="guardarNuevoProducto(false)">💾 Guardar en catálogo</button>
@@ -1047,6 +1059,17 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <button class="btn btn-p" style="flex:1;justify-content:center;padding:11px;background:#C0392B" onclick="confirmarAnulacion()">❌ Confirmar anulación</button>
     <button class="btn btn-o" style="flex:1;justify-content:center;padding:11px;background:var(--bg);color:var(--navy);border:none" onclick="closeOv('ovAnular')">Cancelar</button>
   </div>
+</div></div>
+
+<!-- Popup del sistema (doc COTIZADOR.docx, 2026-09-10): reemplaza TODOS los alert()/
+     confirm()/prompt() nativos del navegador -- ver popupAlerta/popupConfirmar/popupPrompt. -->
+<div class="ov" id="ovPopupSistema" style="z-index:2000"><div class="modal" style="max-width:420px">
+  <div class="modal-hd"><div class="modal-title" id="popSisTitulo">⚠️ Aviso</div></div>
+  <div id="popSisMsg" style="font-size:13.5px;color:var(--text);white-space:pre-wrap;margin-bottom:14px;line-height:1.5"></div>
+  <div id="popSisInputWrap" style="display:none;margin-bottom:14px">
+    <input id="popSisInput" type="text" style="width:100%;border:2px solid var(--border);border-radius:10px;padding:10px;font-size:14px;font-family:inherit;box-sizing:border-box">
+  </div>
+  <div style="display:flex;gap:9px" id="popSisBotones"></div>
 </div></div>
 
 <div class="toast" id="toast"></div>
@@ -1116,11 +1139,35 @@ function _mostrarAlertaMemoria(){
 }
 function _ocultarAlertaMemoria(){const b=document.getElementById('memBar');if(b)b.style.display='none';}
 
-// Poda el snapshot pesado (data) SOLO de remisiones ya sincronizadas con el servidor.
-// Su registro ya vive en Sheets; solo se pierde la posibilidad de reimprimir el detalle local.
+// ¿Esta remisión todavía tiene trabajo sin entregar que NECESITA su detalle local?
+// 2026-09-10 (M-02, auditoría de robustez): el PDF se reconstruye desde `rem.data`.
+// Si se poda el detalle de una remisión cuyo registro ya se sincronizó pero cuyo PDF
+// sigue en cola, procesarColaPDF la declara irrecuperable y la descarta: el documento
+// desaparece sin que nadie lo pida. Lo mismo aplica a un pago sin confirmar, a una
+// venta que no llegó al ERP (se reintenta con sus items) y a la remisión abierta o en
+// edición en este momento.
+function _remTieneTrabajoPendiente(rem){
+  if(!rem) return false;
+  const id=String(rem.id);
+  try{
+    if(leerSeguro('cola_pdf',[]).some(e=>String(e.id)===id)) return true;
+    if(leerSeguro('cola_remisiones',[]).some(e=>String(e.id)===id)) return true;
+    if(leerSeguro('fallas_erp',[]).some(e=>String(e&&e.id)===id)) return true; // C-02: se reintenta con items
+  }catch(_){}
+  if((rem.pagos||[]).some(p=>p&&p._sync!==true)) return true;
+  if(typeof remActualId!=='undefined'&&String(remActualId)===id) return true; // abierta en pantalla
+  if(typeof _modoEdicion!=='undefined'&&_modoEdicion&&String(_modoEdicion)===id) return true; // en edición
+  return false;
+}
+
+// Poda el snapshot pesado (data) SOLO de remisiones ya sincronizadas con el servidor
+// Y sin trabajo pendiente que dependa de ese detalle. Su registro ya vive en Sheets;
+// solo se pierde la posibilidad de reimprimir el detalle local.
 function _podarRemisionesSincronizadas(){
   let podadas=0;
-  for(const r of remisiones){ if(r&&r.sincronizado===true&&r.data){ delete r.data; podadas++; } }
+  for(const r of remisiones){
+    if(r&&r.sincronizado===true&&r.data&&!_remTieneTrabajoPendiente(r)){ delete r.data; podadas++; }
+  }
   return podadas;
 }
 
@@ -1136,8 +1183,31 @@ function guardarSeguro(clave,valor){
   }
 }
 
+// M-08 (auditoría de robustez 2026-09-10): ids borrados A PROPÓSITO en ESTA pestaña.
+// La fusión de abajo no debe revivirlos al encontrarlos todavía en disco.
+const _idsBorradosLocal=new Set();
+
+// Fusiona la copia en memoria con lo que haya en disco ANTES de escribir.
+// El hallazgo 8 era este: cada pestaña guardaba su arreglo completo, así que si la
+// pestaña A registraba una remisión y la B registraba otra, la última en escribir
+// dejaba `r_rems` solo con la suya -- el detalle local de la otra venta se perdía
+// (la cola sí conservaba ambas, pero el historial de este celular no).
+function _fusionarRemisionesConDisco(){
+  let enDisco=[];
+  try{ enDisco=leerSeguro('r_rems',[]); }catch(_){ return remisiones; }
+  if(!Array.isArray(enDisco)||!enDisco.length) return remisiones;
+  const enMemoria=new Set(remisiones.map(r=>String(r&&r.id)));
+  const ajenas=enDisco.filter(r=>r&&!enMemoria.has(String(r.id))&&!_idsBorradosLocal.has(String(r.id)));
+  if(ajenas.length){
+    // Las registró otra pestaña mientras esta tenía su propia copia en memoria.
+    // Se adoptan aquí para que ambas pestañas converjan al mismo historial.
+    remisiones=remisiones.concat(ajenas);
+  }
+  return remisiones;
+}
+
 // Persiste el arreglo de remisiones con compactación ante cuota llena.
-function persistirRemisiones(){ return guardarSeguro('r_rems',JSON.stringify(remisiones)); }
+function persistirRemisiones(){ return guardarSeguro('r_rems',JSON.stringify(_fusionarRemisionesConDisco())); }
 
 // Lectura segura: si el JSON está corrupto, respalda el crudo y devuelve el valor por defecto.
 function leerSeguro(clave,porDefecto){
@@ -1199,6 +1269,59 @@ function _dequeueRemision(id){
 function _marcarPagoSync(uuid){
   for(const r of remisiones){ const p=(r.pagos||[]).find(x=>x.uuid===uuid); if(p){ p._sync=true; persistirRemisiones(); return; } }
 }
+
+// ── Cola de CANCELACIONES (M-07, auditoría de robustez 2026-09-10) ───────────
+// Antes, cancelar sin conexión solo marcaba la remisión local y la dejaba con
+// sincronizado=false: _pendientesTotal() devolvía 0 y la reconciliación de arranque
+// la reenviaba como una remisión GENÉRICA (tipo:'remision'), que no lleva el motivo
+// ni dispara la ruta cancelar_remision del servidor. El celular decía "cancelada"
+// sin que la cancelación estuviera de verdad pendiente de entrega.
+function _encolarCancelacion(rem,motivo){
+  const cola=leerSeguro('cola_cancel',[]);
+  const idx=cola.findIndex(e=>String(e.id)===String(rem.id));
+  const entrada={id:rem.id,folio:rem.folio,
+    motivo:motivo||rem.motivoCancelacion||'',
+    fechaCancelacion:rem.fechaCancelacion||'',
+    device:_deviceLabel_(),ts:(idx>=0&&cola[idx].ts)||Date.now()};
+  if(idx>=0){ entrada._try=cola[idx]._try||0; cola[idx]=entrada; }
+  else cola.push(entrada);
+  guardarSeguro('cola_cancel',JSON.stringify(cola));
+  actualizarBadgePendientes();
+}
+function _dequeueCancelacion(id){
+  const cola=leerSeguro('cola_cancel',[]);
+  guardarSeguro('cola_cancel',JSON.stringify(cola.filter(e=>String(e.id)!==String(id))));
+}
+function _cancelacionPendiente(id){
+  try{ return leerSeguro('cola_cancel',[]).some(e=>String(e.id)===String(id)); }catch(_){ return false; }
+}
+async function procesarColaCancel(){
+  if(!isOnline||_procCancelEnCurso)return;
+  const url=getScriptUrl();if(!url)return;
+  const cola=leerSeguro('cola_cancel',[]);
+  if(!cola.length)return;
+  _procCancelEnCurso=true;
+  try{
+    let ok=0;
+    for(const item of [...cola]){
+      try{
+        const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},
+          body:JSON.stringify({tipo:'cancelar_remision',token:API_TOKEN,id:item.id,folio:item.folio,
+            motivo:item.motivo,fechaCancelacion:item.fechaCancelacion,device:item.device})});
+        const d=res.ok?await res.json():null;
+        if(d&&d.ok){
+          _dequeueCancelacion(item.id);
+          const r=remisiones.find(x=>String(x.id)===String(item.id));
+          if(r){ r.sincronizado=true; persistirRemisiones(); }
+          if(typeof guardarEventoSync==='function')guardarEventoSync({folio:item.folio,operacion:'CANCELACION_GUARDADA',resultado:'OK',detalle:''});
+          ok++;
+        } else { _bumpTry('cola_cancel',e=>String(e.id)===String(item.id)); }
+      }catch(e){ _bumpTry('cola_cancel',e=>String(e.id)===String(item.id)); }
+    }
+    if(ok>0)toast('Cancelaciones sincronizadas: '+ok+' ✓','ok');
+    actualizarBadgePendientes();
+  }finally{ _procCancelEnCurso=false; }
+}
 function reconciliarPendientes(){
   // Remisiones no sincronizadas que NO están en cola (huérfanas por cierre a mitad de envío)
   const cola=leerSeguro('cola_remisiones',[]);
@@ -1208,6 +1331,13 @@ function reconciliarPendientes(){
   // para que el ts respete el orden de creación al asignar folios definitivos.
   const porEdad=remisiones.slice().reverse();
   porEdad.forEach((r,i)=>{
+    // M-07: una remisión cancelada sin sincronizar NO se reenvía como remisión
+    // genérica (perdía el motivo y no tocaba la ruta cancelar_remision). Va a su
+    // propia cola, que sí conserva motivo y fecha.
+    if(r&&!r.sincronizado&&r.estado==='cancelada'){
+      if(!_cancelacionPendiente(r.id)) _encolarCancelacion(r,r.motivoCancelacion);
+      return;
+    }
     if(r&&!r.sincronizado&&!enCola.has(r.id)){
       // F-importante: antes solo mandaba folio/cliente/total, sin items/subtotal/IVA
       // (a diferencia de _encolarRemision) -- el servidor SÍ la registraba en
@@ -1217,6 +1347,7 @@ function reconciliarPendientes(){
       const _tot=_totalesERP(r);
       cola.push({id:r.id,folio:r.folio,cliente:r.cliente,fecha:r.fecha,
         total:r.total,saldo:r.saldo,estado:r.estado,device:_deviceLabel_(),ts:Date.now()+i,
+        rev:+r._rev||0, // M-01: la reconciliación encola la revisión actual
         resetPagos:!!r._resetPagos,
         condicionesPago:(r.data&&r.data.d_pago)||'',
         cotizacionOrigen:r._cotizacionOrigen||'',
@@ -1264,7 +1395,7 @@ function setOnlineState(online){
   const wasOffline=!isOnline;
   isOnline=online;
   // Remisiones PRIMERO (asignan folio REM- definitivo), luego pagos (ya con folio correcto), luego PDFs.
-  if(online&&wasOffline){setTimeout(procesarColaRemisiones,800);setTimeout(procesarCola,1400);setTimeout(procesarColaPDF,2000);setTimeout(bajarCobros,2400);setTimeout(_procesarColaResultadoCot,2800);}
+  if(online&&wasOffline){setTimeout(procesarColaRemisiones,800);setTimeout(procesarCola,1400);setTimeout(procesarColaPDF,2000);setTimeout(bajarCobros,2400);setTimeout(_procesarColaResultadoCot,2800);setTimeout(procesarColaCancel,3200);}
   actualizarPanelConexion();
 }
 
@@ -1276,13 +1407,19 @@ function actualizarPanelConexion(){
   const pend=leerSeguro('cola_offline',[]).length+leerSeguro('cola_remisiones',[]).length+leerSeguro('cola_pdf',[]).length;
   const ts=localStorage.getItem('cache_cobros_ts');
   const fr=ts?_frescuraTexto(ts).txt:'aún sin sincronizar';
-  const catSync=localStorage.getItem('gs_sync');
+  // 2026-09-10 (auditoría Cotizador): 'erp_catalogo_ts' es cuándo el ERP publicó de
+  // verdad (lo manda el ping) -- antes se mostraba 'gs_sync' (cuándo el CELULAR bajó
+  // la respuesta), que parecía la hora de publicación aunque el ERP nunca hubiera
+  // publicado nada y el celular solo hubiera recibido un catálogo vacío.
+  const catTs=localStorage.getItem('erp_catalogo_ts');
+  const catTxt=catTs?('Publicado por el ERP: '+_frescuraTexto(catTs).txt.replace(/^actualizado /,''))
+                    :'⚠️ El ERP todavía no ha publicado catálogo — revisa el token del Apps Script en Configuración del ERP';
   if(!isOnline){
     bar.classList.add('show');bar.classList.remove('warn');
     msg.innerHTML='📵 <b>Sin conexión</b> — todo se guarda en este celular y se enviará solo al volver la señal.'
       +(pend>0?' <b>⏳ '+pend+' pendiente(s)</b>':'')
       +'<div style="font-weight:400;opacity:.92;margin-top:3px;font-size:11px">💡 Muévete a una zona con señal · revisa datos móviles/WiFi · usa el botón de WhatsApp para avisar un cobro · puedes seguir registrando, nada se pierde.</div>'
-      +'<div style="font-weight:400;opacity:.95;font-size:11px;margin-top:3px;background:rgba(0,0,0,.18);border-radius:6px;padding:3px 7px">🏷️ <b>Precios del catálogo:</b> '+(catSync?catSync+' (pueden haber cambiado)':'⚠️ sin descargar — conéctate una vez antes de cotizar')+'</div>'
+      +'<div style="font-weight:400;opacity:.95;font-size:11px;margin-top:3px;background:rgba(0,0,0,.18);border-radius:6px;padding:3px 7px">🏷️ <b>Precios del catálogo:</b> '+catTxt+'</div>'
       +'<div style="font-weight:400;opacity:.8;font-size:10.5px;margin-top:2px">Última sincronización: '+fr+'</div>';
   } else if(TOKEN_INVALIDO_CONFIRMADO){
     // Banner FIJO en vez de un aviso que se repite solo cada 10s: se queda tal
@@ -1369,6 +1506,14 @@ async function heartbeat(){
       actualizarPanelConexion();
     }
     if(tokenRechazado||cuotaSospecha) return; // colas/cobros/catálogo fallarían igual -- no insistir
+    // 2026-09-10 (auditoría Cotizador): hora REAL de la última publicación del ERP, no de
+    // cuándo el celular recibió respuesta -- '' si el ERP nunca ha publicado (ver ping en
+    // apps_script.js). Se guarda en cada heartbeat, no solo cuando cambia catVer, porque
+    // esta hora ya no depende de que haya algo nuevo que bajar.
+    if(pd&&typeof pd.productosTs==='string'){
+      if(pd.productosTs) localStorage.setItem('erp_catalogo_ts',pd.productosTs);
+      else localStorage.removeItem('erp_catalogo_ts');
+    }
     if(isOnline){
       procesarColaElim(); // procesa borrados pendientes
       procesarColaNuevos(); // reenvía clientes/productos nuevos que quedaron sin subir
@@ -1436,7 +1581,7 @@ async function _pedirAlmacenamientoPersistente(){
   }catch(_){ /* sin soporte: no pasa nada, comportamiento anterior */ }
 }
 function startHeartbeat(){heartbeat();_hbTimer=setInterval(heartbeat,10000);}
-window.addEventListener('online',()=>{heartbeat();setTimeout(procesarColaElim,900);setTimeout(procesarColaRemisiones,1500);setTimeout(procesarCola,2100);setTimeout(procesarColaPDF,2700);setTimeout(_procesarColaCotR,3300);setTimeout(procesarColaNuevos,3600);});
+window.addEventListener('online',()=>{heartbeat();setTimeout(procesarColaElim,900);setTimeout(procesarColaRemisiones,1500);setTimeout(procesarCola,2100);setTimeout(procesarColaPDF,2700);setTimeout(_procesarColaCotR,3300);setTimeout(procesarColaNuevos,3600);setTimeout(procesarColaCancel,3900);});
 window.addEventListener('offline',()=>setOnlineState(false));
 
 // C) Recordatorio/seguridad al salir o pasar a segundo plano.
@@ -1446,6 +1591,7 @@ function _pendientesTotal(){
        +leerSeguro('cola_pdf',[]).length+leerSeguro('cola_elim',[]).length
        +leerSeguro('cola_cot_r',[]).length // cotizaciones pendientes
        +leerSeguro('cola_nuevos',[]).length // clientes/productos nuevos pendientes
+       +leerSeguro('cola_cancel',[]).length // M-07: cancelaciones sin entregar al servidor
        +leerSeguro('fallas_erp',[]).length; // C-02: ventas guardadas que NO llegaron al ERP
 }
 // Al minimizar/cambiar de app: si hay señal, intenta vaciar las colas en segundo plano
@@ -1455,7 +1601,7 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden){
     // Al ir a segundo plano: vaciar cola si hay señal (crítico en iOS — puede borrar datos)
     if(isOnline && _pendientesTotal()>0){
-      procesarColaElim();procesarColaRemisiones();procesarCola();procesarColaPDF();_procesarColaCotR();procesarColaNuevos();
+      procesarColaElim();procesarColaRemisiones();procesarCola();procesarColaPDF();_procesarColaCotR();procesarColaNuevos();procesarColaCancel();
     }
     // Refrescar catálogo en segundo plano si tiene más de 1h (sin gastar datos visibles)
     const gsSync=localStorage.getItem('gs_sync');
@@ -1469,7 +1615,7 @@ document.addEventListener('visibilitychange',()=>{
     if(pend>0) toast('⏳ '+pend+' sin enviar — sincronizando…','warn',3500);
     // Si la cola tiene items, procesarlos de inmediato (por si volvió la señal)
     if(pend>0&&isOnline){
-      setTimeout(()=>{procesarColaElim();procesarColaRemisiones();procesarCola();procesarColaPDF();_procesarColaCotR();procesarColaNuevos();},500);
+      setTimeout(()=>{procesarColaElim();procesarColaRemisiones();procesarCola();procesarColaPDF();_procesarColaCotR();procesarColaNuevos();procesarColaCancel();},500);
     }
   }
 });
@@ -1485,7 +1631,7 @@ let _bajandoCobros=false;
 // a llamar al MISMO procesador antes de que termine, reenviando todo en paralelo:
 // quema folios (cotizaciones piden uno nuevo en cada reintento) y agota la cuota de
 // Apps Script. Estos flags garantizan UNA pasada a la vez por cola.
-let _procRemEnCurso=false,_procPagosEnCurso=false,_procPDFEnCurso=false,_procElimEnCurso=false,_procCotEnCurso=false,_procNuevosEnCurso=false;
+let _procRemEnCurso=false,_procPagosEnCurso=false,_procPDFEnCurso=false,_procElimEnCurso=false,_procCotEnCurso=false,_procNuevosEnCurso=false,_procCancelEnCurso=false;
 async function bajarCobros(){
   if(!isOnline||_bajandoCobros)return;
   const url=getScriptUrl();if(!url)return;
@@ -1585,7 +1731,12 @@ function aplicarPago(rem, monto, opts){
   if(rem.data) rem.data.pagos=[...rem.pagos];
 
   rem.sincronizado = false;
-  persistirRemisiones();
+  // M-09: el cobro también puede no caber en el celular. Se avisa atado al folio en
+  // vez de dejar que la pantalla se comporte como si el pago ya estuviera guardado.
+  // El pago sí se encola (enviarPagoConCola) — lo que falla es la copia local.
+  if(!persistirRemisiones()){
+    toast('⚠️ Memoria llena — el cobro de '+rem.folio+' NO se guardó en este celular. Usa 💾 Guardar datos y libera espacio.','err',9000);
+  }
   renderPagos();
   enviarPagoConCola(rem, pago);
 
@@ -1701,8 +1852,10 @@ function _poblarDropdowns(){
   _llenarSelect('d_pago',OPCIONES_PAGO_REMISION);
   _llenarSelect('cot_d_pago',OPCIONES_PAGO_COTIZACION);
   _llenarSelect('cot_d_asesor',OPCIONES_ASESOR);
-  _llenarSelect('metodoAbono',OPCIONES_METODO_PAGO);
-  _llenarSelect('prMetodo',OPCIONES_METODO_PAGO);
+  // 2026-09-10 (hallazgo 2): placeholder vacío en vez de arrancar en "Efectivo" --
+  // que el vendedor elija a propósito, nunca por omisión.
+  _llenarSelect('metodoAbono',OPCIONES_METODO_PAGO,'— Método de pago —');
+  _llenarSelect('prMetodo',OPCIONES_METODO_PAGO,'— Método de pago —');
   _llenarDatalist('cot_lugarOpts',OPCIONES_LUGAR_ENTREGA);
 }
 
@@ -1754,12 +1907,31 @@ const CODIGO_BORRADO = '2526';   // ← cámbialo por el tuyo
 // Token de seguridad — leído de localStorage para no quedar en código fuente
 // Configurar en el botón 🔑 Token de la barra
 let API_TOKEN=(localStorage.getItem('api_token')||'').trim();
+
+// ── M-11 (auditoría de robustez 2026-09-10): a QUIÉN se le puede mandar el token ──
+// La comprobación anterior preguntaba si la URL CONTENÍA el nombre del dominio como
+// texto suelto, en cualquier posición, así que `https://qa.invalid/...` se
+// aceptaba como servidor y —peor— la envoltura de fetch le adjuntaba el token en el
+// cuerpo de cada petición. Ahora se analiza la URL de verdad: HTTPS, hostname EXACTO
+// y ruta de un despliegue real de Apps Script (/macros/s/<id>/exec).
+// Se usa en los tres puntos que decidían por su cuenta: la envoltura de fetch,
+// importar configuración y Conectar y cargar.
+function _urlAppsScriptValida(u){
+  let p;
+  try{ p=new URL(String(u==null?'':u).trim()); }catch(_){ return false; }
+  if(p.protocol!=='https:') return false;
+  if(p.hostname!=='script.google.com') return false; // exacto, no "contiene"
+  return /^\/macros\/s\/[A-Za-z0-9_-]+\/(exec|dev)$/.test(p.pathname);
+}
+
 (function(){
   const _f=window.fetch.bind(window);
   window.fetch=function(input,init){
     // Normaliza string o URL object a texto para detectar destino
     const url = (typeof input==='string') ? input : (input&&input.href) ? input.href : '';
-    if(url.includes('script.google.com')){
+    // M-11: solo un despliegue real de Apps Script recibe el token. A cualquier otro
+    // destino la petición sale TAL CUAL, sin credenciales.
+    if(_urlAppsScriptValida(url)){
       init = init || {};
       const _metodo=(init.method||'GET').toUpperCase();
       if(_metodo==='GET'){
@@ -1845,8 +2017,8 @@ function _aplicarTasasIvaPublicadas(){
 function _tituloCase(s){ return String(s).trim().toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()); }
 function _aplicarFormasPagoPublicadas(){
   const lista=(FORMAS_PAGO_PUBLICADAS&&FORMAS_PAGO_PUBLICADAS.length)?FORMAS_PAGO_PUBLICADAS.map(_tituloCase):OPCIONES_METODO_PAGO;
-  _llenarSelect('metodoAbono',lista);
-  _llenarSelect('prMetodo',lista);
+  _llenarSelect('metodoAbono',lista,'— Método de pago —');
+  _llenarSelect('prMetodo',lista,'— Método de pago —');
 }
 // Punto único de entrada: aplica TODO lo que el ERP haya publicado (llamado
 // desde refrescarCatalogo al sincronizar, y desde loadGSCache con lo que
@@ -1868,13 +2040,10 @@ function _aplicarConfiguracionPublicada(datos){
   }
 }
 
-// URL del script de Drive/Folios — se guarda en localStorage con clave 'drive_url'
+// URL del script de Drive/Folios — se guarda en localStorage con clave 'drive_url'.
+// 2026-09-10: la UI de Configuración ya no pide esta URL por separado (era el mismo
+// valor que 'gs_url' siempre) — conectarGS() escribe las dos claves con un solo campo.
 function getScriptUrl(){ return localStorage.getItem('drive_url')||URL_DRIVE; }
-function guardarDriveUrl(){
-  const v=document.getElementById('drive_url').value.trim();
-  if(v){localStorage.setItem('drive_url',v);document.getElementById('driveStatus').innerHTML='<span style="color:var(--green)">✓ URL guardada</span>';cargarFolioRemoto();}
-  else{localStorage.removeItem('drive_url');document.getElementById('driveStatus').textContent='';}
-}
 
 document.addEventListener('DOMContentLoaded',()=>{
   _poblarDropdowns(); // llena los menús desplegables desde las listas OPCIONES_* de CONFIG
@@ -1893,6 +2062,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderTable();calcTotals();
   remActualId=null;
   renderPagos();
+  _actualizarChkCorreo();
   setTimeout(syncPrintHeader,500);
   setTimeout(()=>{ if(typeof _actualizarHeaderVivo==='function')_actualizarHeaderVivo(); },300); // #5: header vivo con lo que ya hay en caché local
   _pedirAlmacenamientoPersistente(); // pide al navegador NO borrar los datos offline
@@ -2096,6 +2266,11 @@ async function guardarEnDrive(doc,folio,cliente,total,filename,remParam,hashPdf,
     email:document.getElementById('c_email')?.value||'',
     personaMoral:document.getElementById('c_persona_moral')?.value==='1'
   };
+  // 2026-09-10 (mejora "enviar a correo", doc COTIZADOR.docx): solo se pide enviar si la
+  // casilla está marcada Y el correo tiene forma válida -- el checkbox ya no puede quedar
+  // marcado sin un correo real (ver _onChkEnviarCorreoClick), pero se revisa otra vez aquí
+  // por si el correo se borró después de marcarla.
+  const correoEnviar=!!(document.getElementById('chkEnviarCorreo')?.checked&&_correoValido(datosCliente.email));
   const entry={tipo:'remision',
     id:remActiva?remActiva.id:'',
     folio, cliente:cliente||'CLIENTE',
@@ -2105,7 +2280,7 @@ async function guardarEnDrive(doc,folio,cliente,total,filename,remParam,hashPdf,
     estado:remActiva?remActiva.estado:'pendiente',
     condicionesPago:document.getElementById('d_pago')?.value||'',
     horaDescarga, lat:gps?gps.lat:'', lng:gps?gps.lng:'',
-    datosCliente,
+    datosCliente, correoEnviar,
     pdf:b64, device:_deviceLabel_()};
   _guardarEnColaPDF(entry); // nunca se pierde para Drive
   actualizarBadgePendientes();
@@ -2127,7 +2302,12 @@ async function guardarEnDrive(doc,folio,cliente,total,filename,remParam,hashPdf,
           if(hashPdf)remActiva.pdfHash=hashPdf;
           persistirRemisiones();
         }
-        toast('Guardado en Drive ✓','ok');
+        if(correoEnviar){
+          if(d.correoEnviado) toast('Guardado en Drive ✓ · ✉️ correo enviado','ok');
+          else toast('Guardado en Drive ✓ · ⚠️ no se pudo enviar el correo (se guardó igual)','warn',5000);
+        } else {
+          toast('Guardado en Drive ✓','ok');
+        }
         cargarFolioRemoto();
         if(typeof guardarEventoSync==='function'){guardarEventoSync({folio:d.folio||entry.folio,operacion:'REMISION_GUARDADA',resultado:'OK'});guardarEventoSync({folio:d.folio||entry.folio,operacion:'PDF_GUARDADO',resultado:'OK'});}
       } else if(d&&d.ok&&d.pdfOk===false){
@@ -2185,12 +2365,21 @@ function _chequearAlmacenamiento(){
   }
 }
 function _descargarLocalStorage(){
+  // M-03: esta es la descarga de EMERGENCIA (memoria llena, M-09) -- lleva las mismas
+  // colas pendientes que exportarRespaldo(), para no perder trabajo sin entregar
+  // justo en el momento en que el celular ya no puede guardar nada más.
   const datos={
     exportado: new Date().toLocaleString('es-MX'),
     remisiones: leerSeguro('r_rems',[]),
     cola_pagos: leerSeguro('cola_offline',[]),
     cola_remisiones: leerSeguro('cola_remisiones',[]),
+    cola_cancel: leerSeguro('cola_cancel',[]),
     cola_pdf: leerSeguro('cola_pdf',[]).map(e=>({id:e.id,folio:e.folio,ts:e.ts})), // sin base64 pesado
+    cotizaciones: leerSeguro('_cot_historial',[]),
+    cola_cotizaciones: leerSeguro('cola_cot_r',[]).map(e=>({id:e.id,folio:e.folio,ts:e.ts})), // sin base64 pesado
+    cola_resultado_cotizacion: leerSeguro('cola_resultado_cot',[]),
+    clientes_productos_nuevos: leerSeguro('cola_nuevos',[]),
+    fallas_erp: leerSeguro('fallas_erp',[]),
     clientes_cache: leerSeguro('gs_cc',[]),
     ultima_sync_catalogo: localStorage.getItem('gs_sync')||'—'
   };
@@ -2459,9 +2648,9 @@ function usarPrecioAnterior(rowId){
 // con el factor confirmable (no fijo) porque el margen sano varía por familia
 // de producto (tornillería vs. herramienta, por ejemplo).
 let _ultimoFactorSugerido=null;
-function sugerirPrecio(rowId){
+async function sugerirPrecio(rowId){
   const it=items.find(i=>i._id===rowId);if(!it||!(+it.costo>0))return;
-  const factorTxt=prompt('Factor sobre el costo del proveedor (1.40 = 40% de margen):',_ultimoFactorSugerido||'1.40');
+  const factorTxt=await popupPrompt('Factor sobre el costo del proveedor (1.40 = 40% de margen):',_ultimoFactorSugerido||'1.40','💰 Sugerir precio');
   if(factorTxt===null)return;
   const factor=parseFloat(factorTxt);
   if(!(factor>1)){toast('Factor inválido — debe ser un número mayor a 1','err');return;}
@@ -2711,6 +2900,41 @@ function selCliente(idx){
   }
   autosave();
   _actualizarBtnPrecarga(c.nombre);
+  _actualizarChkCorreo();
+}
+// ── ¿Estamos parados en la pantalla de Cotización? (hallazgo 5, 2026-09-10) ──
+function _enModoCotizacion(){
+  const s=document.getElementById('secCot');
+  return !!(s&&s.style.display!=='none');
+}
+// ── ✉️ Enviar por correo (mejora 2026-09-10, doc COTIZADOR.docx) ──────────────
+// Se marca sola si el cliente YA tiene un correo con forma de correo; si no, se
+// desmarca y explica cómo capturarlo. Nunca decide por ti si el cliente SÍ tiene
+// correo -- solo sugiere el estado más probable, tú puedes destildarla igual.
+function _correoValido(v){ return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((v||'').trim()); }
+function _actualizarChkCorreo(){
+  const chk=document.getElementById('chkEnviarCorreo');
+  const txt=document.getElementById('correoEstadoTxt');
+  if(!chk||!txt)return;
+  const email=(document.getElementById('c_email')?.value||'').trim();
+  if(_correoValido(email)){
+    chk.checked=true; chk.disabled=false;
+    txt.innerHTML=esc(email);
+    txt.style.cursor='default'; txt.onclick=null;
+  } else {
+    chk.checked=false; chk.disabled=false;
+    txt.textContent='Sin correo — toca aquí para agregarlo';
+    txt.style.cursor='pointer'; txt.onclick=abrirMasDatosCliente;
+  }
+}
+function _onChkEnviarCorreoClick(){
+  const chk=document.getElementById('chkEnviarCorreo');
+  const email=(document.getElementById('c_email')?.value||'').trim();
+  if(chk.checked&&!_correoValido(email)){
+    chk.checked=false;
+    toast('Este cliente no tiene correo capturado — agrégalo en "➕ Más datos"','warn',4000);
+    abrirMasDatosCliente();
+  }
 }
 document.addEventListener('click',e=>{
   const p=document.getElementById('cPanel');
@@ -2726,7 +2950,14 @@ let _redondearRem=false;
 // devuelve {sub, iva, desc, tot, arts, pzs}. Usa _redondearRem (global de abajo) si
 // no se le pasa `redondear`. Aquí solo se consume.
 function calcTotals(){
-  const dp=+document.getElementById('descPct').value||0;
+  const _dpEl=document.getElementById('descPct');
+  const _dpCrudo=_dpEl?_dpEl.value:0;
+  // M-05: un descuento fuera de 0–100 se marca en rojo y NO se usa para calcular
+  // (así el total en pantalla nunca es negativo). Registrar queda bloqueado aparte,
+  // en _faltanDatos, para que el vendedor sepa por qué y lo corrija a propósito.
+  const _dpOk=(_dpCrudo===''||_dpCrudo==null)||descuentoValido(_dpCrudo);
+  if(_dpEl)_dpEl.style.borderColor=_dpOk?'':'#c0392b';
+  const dp=_dpOk?(+_dpCrudo||0):0;
   const{sub,iva,desc,tot,arts,pzs}=_calcTot(items,dp);
   document.getElementById('tSub').textContent=fmt(sub);
   document.getElementById('tIva').textContent=fmt(iva);
@@ -2818,6 +3049,7 @@ function restore(data){
   const btn=document.getElementById('btnBorrarFirma');
   if(_firmaData&&img){img.src=_firmaData;img.style.display='block';if(ph)ph.style.display='none';if(btn)btn.style.display='';}
   else{if(img){img.src='';img.style.display='none';}if(ph)ph.style.display='';if(btn)btn.style.display='none';}
+  _actualizarChkCorreo();
 }
 function guardar(){guardarSeguro('r_draft',JSON.stringify(snap()));}
 function guardarYRegistrar(){
@@ -2840,6 +3072,16 @@ async function registrarRemision(gpsParam){
   const sn=snap();
   const activos=sn.items.filter(i=>(+i.qty>0)&&((+i.precio>0)||i.regalo));
   if(!activos.length){toast('Agrega al menos un producto con cantidad y precio','err');return;}
+  // M-05: última puerta antes de crear el documento. registrarTodo ya valida con
+  // _faltanDatos, pero a registrarRemision también se llega por guardarYRegistrar.
+  if(!descuentoValido(sn.descPct||0)){
+    toast('⚠️ El descuento debe estar entre 0 y 100% — corrígelo antes de registrar','err',6000);
+    return {ok:false,folio:null};
+  }
+  if(activos.some(i=>!renglonValido(i))){
+    toast('⚠️ Hay un renglón con cantidad o precio inválido — corrígelo antes de registrar','err',6000);
+    return {ok:false,folio:null};
+  }
   const{tot}=_calcTot(activos,sn.descPct);
   // Guardar GPS en el snap si viene del botón REGISTRAR
   if(gpsParam){sn._lat=gpsParam.lat;sn._lng=gpsParam.lng;}
@@ -2864,9 +3106,15 @@ async function registrarRemision(gpsParam){
       toast('⚠️ '+ex.folio+': cobrado '+fmt(pagado)+' pero el nuevo total es '+fmt(tot)+'. Sobran '+fmt(pagado-tot)+' a favor del cliente.','warn',8000);
     }
     ex.sincronizado=false;
+    // M-01: cada edición sube la revisión. Es lo que permite distinguir "el servidor
+    // confirmó ESTA versión" de "confirmó la anterior mientras yo ya la había cambiado".
+    ex._rev=(+ex._rev||0)+1;
     // FIX rojo #1: en edición ya NO se borran los pagos del servidor (antes: ex._resetPagos=true).
     remActualId=ex.id;
-    persistirRemisiones();
+    const okGuardadoEd=persistirRemisiones(); // M-09: también la edición puede no caber
+    if(!okGuardadoEd){
+      toast('⚠️ Memoria llena — los cambios de '+ex.folio+' podrían NO haberse guardado en este celular.','err',9000);
+    }
     guardar();renderPagos();updateObsBalance(ex);
     sincronizarRemision(ex);
     _desbloquearPDF(true);
@@ -2875,7 +3123,7 @@ async function registrarRemision(gpsParam){
       if(!isOnline||!window.jspdf)return;
       try{ descargarPDF(ex); }catch(e){ console.warn('auto-PDF edición',e); }
     },600);
-    return;
+    return {ok:okGuardadoEd,folio:ex.folio}; // M-09
   }
 
   // ── Nueva remisión — folio desde el servidor ──
@@ -2910,12 +3158,23 @@ async function registrarRemision(gpsParam){
   const now=new Date();
   const rem={id:uuidRemision(),folio,fecha:now.toLocaleDateString('es-MX',{day:'2-digit',month:'2-digit',year:'numeric'}),
     cliente:sn.c_nombre||'Sin nombre',total:tot,saldo:tot,estado:'pendiente',pagos:[],
-    sincronizado:false,data:{...sn,folio},_cotizacionOrigen:_cotOrigenPendiente||''};
+    sincronizado:false,_rev:1,data:{...sn,folio},_cotizacionOrigen:_cotOrigenPendiente||''};
   _cotOrigenPendiente=null; // ya quedó grabado en ESTA remisión -- no debe heredarlo la siguiente
   const fEl=document.getElementById('folioBadge');
   if(fEl){fEl.innerText=folio;syncFolio(folio);}
   remisiones.unshift(rem);remActualId=rem.id;
   const okGuardado=persistirRemisiones();
+  // 2026-09-10 (hallazgo 7, auditoría Cotizador): _mostrarAlertaMemoria() ya pone la barra
+  // roja general, pero antes el flujo de REGISTRAR seguía igual (mostraba "✅ Registrada")
+  // aunque ESTA remisión en particular no se hubiera guardado. Un toast atado al folio evita
+  // la falsa sensación de "ya quedó" si el celular se cierra antes de sincronizar.
+  if(!okGuardado){
+    // 2026-09-10 (M-09, auditoría de robustez): además del aviso, el resultado se
+    // DEVUELVE para que registrarTodo no siga a la pantalla de confirmación como si
+    // la venta hubiera quedado guardada. Antes la remisión existía solo en memoria:
+    // si el celular se cerraba antes de sincronizar, se perdía sin que nadie lo supiera.
+    toast('⚠️ Memoria llena — '+folio+' podría NO haberse guardado en este celular. No cierres la app hasta liberar espacio.','err',9000);
+  }
   guardar();renderPagos();updateObsBalance(rem);
   _desbloquearPDF(true);
   console.log('→ llamando sincronizarRemision...');
@@ -2937,6 +3196,7 @@ async function registrarRemision(gpsParam){
       console.error('❌ error en descargarPDF:', e.message);
     }
   },400);
+  return {ok:okGuardado,folio}; // M-09: registrarTodo decide si puede confirmar la venta
 }
 
 // ── Sincronizar remisión con Sheets (sin PDF) ─────────────────
@@ -2948,6 +3208,10 @@ async function sincronizarRemision(rem){
   // del envío, la remisión queda en la cola y se reintenta al reabrir.
   _encolarRemision(rem);
   if(!isOnline){console.log('⚠ offline, esperando señal'); return;}
+  // M-01: revisión que se está enviando. Si al volver la respuesta la remisión ya
+  // cambió (el vendedor la editó mientras viajaba el POST), no se confirma como
+  // sincronizada: la cola conserva la versión nueva y se reenvía.
+  const _revEnviada=+rem._rev||0;
   const _tot=_totalesERP(rem);
   const body={tipo:'remision',token:API_TOKEN,id:rem.id,folio:rem.folio,cliente:rem.cliente,fecha:rem.fecha,
     total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),
@@ -2963,6 +3227,13 @@ async function sincronizarRemision(rem){
     console.log('✓ JSON parseado:', d);
     if(d&&d.ok){
       if(d.folio)_aplicarFolioDefinitivo(rem,d.folio); // TMP- → REM- definitivo
+      if(Number(rem._rev||0)!==_revEnviada){
+        // M-01: se editó mientras viajaba el POST. El servidor guardó la versión vieja;
+        // la cola ya trae la nueva (la editó _encolarRemision) y se reenviará sola.
+        persistirRemisiones();
+        actualizarBadgePendientes();
+        return;
+      }
       rem.sincronizado=true;
       delete rem._resetPagos; // ya se limpiaron en el servidor; no repetir
       _dequeueRemision(rem.id);
@@ -3044,21 +3315,31 @@ function _totalesERP(rem){
 }
 function _encolarRemision(rem){
   const cola=leerSeguro('cola_remisiones',[]);
-  // Deduplica por id (UUID), no por folio (que puede ser temporal TMP-)
-  if(!cola.find(r=>r.id===rem.id)){
-    const _tot=_totalesERP(rem);
-    cola.push({id:rem.id,folio:rem.folio,cliente:rem.cliente,fecha:rem.fecha,
-      total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),ts:Date.now(),
-      resetPagos:!!rem._resetPagos,
-      // F-menor: antes condicionesPago solo viajaba en el POST del PDF -- una venta a
-      // crédito 7/15/30 creada offline llegaba al Excel/ERP sin esa columna si el PDF
-      // no se subía. El servidor ya la lee (datos.condicionesPago); solo faltaba mandarla.
-      condicionesPago:(rem.data&&rem.data.d_pago)||'',
-      // 2026-07-14: solo presente si esta remisión vino de "Convertir a Remisión".
-      cotizacionOrigen:rem._cotizacionOrigen||'',
-      items:_itemsERP(rem),subtotal:_tot.subtotal,descMonto:_tot.descMonto,ivaMonto:_tot.ivaMonto,ivaPct:_tot.ivaPct}); // #15
-    guardarSeguro('cola_remisiones',JSON.stringify(cola));
-  }
+  const _tot=_totalesERP(rem);
+  // Deduplica por id (UUID), no por folio (que puede ser temporal TMP-).
+  // 2026-09-10 (M-01, auditoría de robustez): antes solo agregaba si el id NO estaba
+  // en la cola, así que editar una remisión ya encolada dejaba el IMPORTE VIEJO en la
+  // cola: se enviaba $100 mientras la pantalla mostraba $200. Ahora la entrada se
+  // REEMPLAZA por la versión actual. Se conserva `ts` (orden de creación → el servidor
+  // asigna los folios REM- en el orden real) y `_try` (contador de intentos atorados).
+  const idx=cola.findIndex(r=>String(r.id)===String(rem.id));
+  const entrada={id:rem.id,folio:rem.folio,cliente:rem.cliente,fecha:rem.fecha,
+    total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),
+    ts:(idx>=0&&cola[idx].ts)||Date.now(),
+    // Revisión del contenido local. El procesador solo marca `sincronizado` si la rev
+    // que volvió del servidor sigue siendo la actual (ver procesarColaRemisiones).
+    rev:+rem._rev||0,
+    resetPagos:!!rem._resetPagos,
+    // F-menor: antes condicionesPago solo viajaba en el POST del PDF -- una venta a
+    // crédito 7/15/30 creada offline llegaba al Excel/ERP sin esa columna si el PDF
+    // no se subía. El servidor ya la lee (datos.condicionesPago); solo faltaba mandarla.
+    condicionesPago:(rem.data&&rem.data.d_pago)||'',
+    // 2026-07-14: solo presente si esta remisión vino de "Convertir a Remisión".
+    cotizacionOrigen:rem._cotizacionOrigen||'',
+    items:_itemsERP(rem),subtotal:_tot.subtotal,descMonto:_tot.descMonto,ivaMonto:_tot.ivaMonto,ivaPct:_tot.ivaPct}; // #15
+  if(idx>=0){ entrada._try=cola[idx]._try||0; cola[idx]=entrada; }
+  else cola.push(entrada);
+  guardarSeguro('cola_remisiones',JSON.stringify(cola));
   actualizarBadgePendientes();
 }
 
@@ -3086,10 +3367,19 @@ async function procesarColaRemisiones(){
                    ||remisiones.find(r=>r.folio===item.folio);
             if(r){
               if(d.folio)_aplicarFolioDefinitivo(r,d.folio);
-              r.sincronizado=true;
-              persistirRemisiones();
-              _encolarPDFsiHace(r);
-              if(d.erpOk===false){ _marcarFallaERP(r); } else { _limpiarFallaERP(r.id); } // C-02
+              // 2026-09-10 (M-01): solo se da por sincronizada la versión que de verdad
+              // se envió. Si la remisión se editó mientras el POST viajaba, lo que llegó
+              // al servidor es la versión vieja -- NO se marca como sincronizada y la
+              // versión actual se vuelve a encolar para enviarse completa.
+              if(Number(r._rev||0)===Number(item.rev||0)){
+                r.sincronizado=true;
+                persistirRemisiones();
+                _encolarPDFsiHace(r);
+                if(d.erpOk===false){ _marcarFallaERP(r); } else { _limpiarFallaERP(r.id); } // C-02
+              } else {
+                persistirRemisiones();
+                _encolarRemision(r);
+              }
             }
             ok++;
           } else { _bumpTry('cola_remisiones',e=>e.id===item.id); }
@@ -3115,7 +3405,8 @@ function _estadoBadge(r){
   const syncTag=tieneSync?'<span class="estado-badge badge-sync">⏳ sin sync</span>':'';
   if(r.estado==='pagado')return syncTag+'<span class="estado-badge badge-pagado">✅ Pagado</span>';
   if(r.estado==='abono')return syncTag+'<span class="estado-badge badge-abono">💛 Abono</span>';
-  if(r.estado==='cancelada')return syncTag+'<span class="estado-badge badge-cancelada">🚫 Cancelada</span>';
+  // M-07: mientras la cancelación no llegue al servidor se dice, no se da por hecha.
+  if(r.estado==='cancelada')return syncTag+'<span class="estado-badge badge-cancelada">🚫 Cancelada'+(_cancelacionPendiente(r.id)?' ⏳ sin enviar':'')+'</span>';
   return syncTag+'<span class="estado-badge badge-pendiente">🔴 Pendiente</span>';
 }
 
@@ -3516,7 +3807,10 @@ function cierreDelDia(){
   const totalPendienteHoy=pendientesHoy.reduce((s,r)=>s+(+r.saldo||0),0);
   const metodos=Object.keys(porMetodo).sort();
 
-  let txt='📊 *SUMETEC — Cierre del día* ('+hoyTxt+')\n━━━━━━━━━━\n';
+  // M-15 (auditoría de robustez 2026-09-10): el título no aclaraba que era el
+  // resumen de ESTE celular, no la caja consolidada del negocio (otros celulares
+  // tienen sus propias remisiones/cobros locales que no entran aquí).
+  let txt='📊 *SUMETEC — Cierre del día (este celular)* ('+hoyTxt+')\n━━━━━━━━━━\n';
   txt+='🧾 Remisiones de hoy: '+remsHoy.length+'\n';
   txt+='💵 Vendido hoy: '+fmt(vendidoHoy)+'\n';
   txt+='💰 Cobrado hoy: '+fmt(cobradoHoy)+'\n';
@@ -3538,7 +3832,8 @@ function cierreDelDia(){
   if(!ov){
     ov=document.createElement('div');ov.id='ovCierreDia';ov.className='ov';ov.style.zIndex='975';
     ov.innerHTML=`<div style="background:#fff;border-radius:16px;padding:22px;max-width:380px;width:calc(100% - 32px)">
-      <div style="font-size:16px;font-weight:800;margin-bottom:10px">🧾 Cierre del día</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:2px">🧾 Cierre del día (este celular)</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">No es el cierre consolidado del negocio -- otros celulares tienen su propio detalle.</div>
       <pre id="cierreDiaBody" style="white-space:pre-wrap;font-family:inherit;font-size:13px;color:var(--muted);line-height:1.6;max-height:50vh;overflow:auto;margin-bottom:14px"></pre>
       <button class="btn" style="width:100%;background:#25D366;color:#fff;justify-content:center;padding:11px;margin-bottom:8px" onclick="_compartirCierreDia()">📲 Compartir por WhatsApp</button>
       <button class="btn btn-modal" style="width:100%;justify-content:center;padding:11px;margin-bottom:8px" onclick="_descargarCierreDiaCSV()">⬇️ Descargar CSV</button>
@@ -3586,7 +3881,7 @@ function abrirCorteCaja(turno){
   const tab=(k)=>`<button onclick="abrirCorteCaja('${k}')" style="flex:1;padding:8px 4px;font-size:12px;font-weight:700;border:1px solid var(--border);background:${_corteTurno===k?'var(--navy)':'var(--white)'};color:${_corteTurno===k?'#fff':'var(--muted)'};cursor:pointer;border-radius:8px">${k==='manana'?'☀️ Mañana':(k==='tarde'?'🌆 Tarde':'📅 Todo el día')}</button>`;
   let html=`<div style="display:flex;gap:6px;margin-bottom:12px">${tab('manana')}${tab('tarde')}${tab('dia')}</div>`;
   html+=`<div style="background:var(--green-light);border-radius:12px;padding:14px;text-align:center;margin-bottom:10px">
-    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Efectivo que debe haber en caja</div>
+    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Efectivo cobrado en este celular</div>
     <div style="font-size:26px;font-weight:800;color:var(--green);margin-top:2px">${fmt(c.efectivo)}</div>
     <div style="font-size:11px;color:var(--muted);margin-top:2px">${t.lbl} · ${hoyTxt}</div></div>`;
   html+=`<div style="display:flex;gap:8px;margin-bottom:10px">
@@ -3602,13 +3897,14 @@ function abrirCorteCaja(turno){
   }else{
     html+='<div style="text-align:center;padding:16px;color:var(--muted)">Sin cobros registrados en este turno.</div>';
   }
-  html+='<div style="font-size:10.5px;color:var(--muted);margin-top:10px;line-height:1.45">Solo cobros de ESTE celular. Los pagos anulados no se cuentan.</div>';
+  html+='<div style="font-size:10.5px;color:var(--muted);margin-top:10px;line-height:1.45">Solo cobros de ESTE celular. No incluye fondo de caja, retiros ni gastos de otras apps -- para eso, la conciliación completa del negocio. Los pagos anulados no se cuentan.</div>';
 
   let ov=document.getElementById('ovCorteCaja');
   if(!ov){
     ov=document.createElement('div');ov.id='ovCorteCaja';ov.className='ov';ov.style.zIndex='976';
     ov.innerHTML=`<div style="background:#fff;border-radius:16px;padding:22px;max-width:400px;width:calc(100% - 32px);max-height:86vh;overflow:auto">
-      <div style="font-size:16px;font-weight:800;margin-bottom:12px">🧮 Corte de caja</div>
+      <div style="font-size:16px;font-weight:800;margin-bottom:2px">🧮 Corte de caja (este celular)</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px">No es la caja consolidada del negocio.</div>
       <div id="corteCajaBody"></div>
       <button class="btn btn-p" style="width:100%;justify-content:center;padding:11px;margin-top:12px" onclick="this.closest('.ov').classList.remove('open')">Cerrar</button>
     </div>`;
@@ -3893,6 +4189,7 @@ async function abrirPagoRapido(id, folio, esLocal){
   document.getElementById('prCliente').textContent=rem.cliente||'—';
   document.getElementById('prSaldo').textContent=fmt(rem.saldo||0)+' MXN';
   document.getElementById('prMonto').value='';
+  _actualizarPreviewMonto('prMonto','prMontoFmt');
   const _vbtn=document.getElementById('btnVerRemisionPago');if(_vbtn)_vbtn.style.display='none';
   const _cbtn=document.getElementById('btnConfirmarPagoRapido');if(_cbtn){_cbtn.style.display='';_cbtn.disabled=false;_cbtn.textContent='✅ Registrar pago';}
   const _op=document.getElementById('prObsPreview');if(_op)_op.style.display='none';
@@ -3902,6 +4199,7 @@ async function abrirPagoRapido(id, folio, esLocal){
 function prPonertotal(){
   const rem=remisiones.find(r=>String(r.id)===String(_prId)||r.folio===_prFolio);
   if(rem)document.getElementById('prMonto').value=rem.saldo||0;
+  _actualizarPreviewMonto('prMonto','prMontoFmt');
 }
 
 async function confirmarPagoRapido(){
@@ -3911,13 +4209,20 @@ async function confirmarPagoRapido(){
   const rem=remisiones.find(r=>String(r.id)===String(_prId)||r.folio===_prFolio);
   if(!rem){toast('Remisión no encontrada','err');return;}
   if(monto>rem.saldo){toast('El monto supera el saldo ('+fmt(rem.saldo)+')','err');return;}
+  // 2026-09-10 (hallazgo 2): mismo guardián que registrarTodo()/onCheckPagado() -- nunca
+  // caer en "Efectivo" en silencio.
+  if(!document.getElementById('prMetodo')?.value){
+    toast('⚠️ Elige el método de pago antes de registrar','err',4500);
+    document.getElementById('prMetodo')?.focus();
+    return;
+  }
 
   const btn=document.getElementById('btnConfirmarPagoRapido');
   if(btn){btn.disabled=true;btn.textContent='⏳ Procesando…';}
 
   try{
     // FUENTE ÚNICA: valida, decide pagado/abono, redondea, persiste, sincroniza y avisa.
-    const _met=document.getElementById('prMetodo')?.value||'Efectivo';
+    const _met=document.getElementById('prMetodo')?.value;
     const _not=document.getElementById('prNotas')?.value||'';
     const pago=aplicarPago(rem, monto, {metodo:_met, notas:_not});
     if(!pago){ if(btn){btn.disabled=false;btn.textContent='✅ Registrar pago';} return; }
@@ -4070,6 +4375,31 @@ function limpiarFiltroCliente(){
   const inp=document.getElementById('histBusqInput');if(inp)inp.value='';
   _renderHistCombinado();
 }
+// M-14 (auditoría de robustez 2026-09-10): un solo estado (Pagado/Abono/Pendiente)
+// mezclaba "cómo va el cobro" con "llegó de verdad a todos lados". Cuatro cosas
+// distintas pueden estar pendientes al mismo tiempo y antes no se veían por
+// separado: guardado en ESTE celular, registro confirmado por el servidor, PDF
+// subido a Drive y exportación al Excel del ERP (C-02). Aplica solo a documentos
+// con datos locales -- uno "☁️ servidor" no tiene ese detalle en este celular.
+function _pipelineEstado(r){
+  if(!r||r._esServidor)return null;
+  const id=String(r.id);
+  return {
+    guardado: leerSeguro('r_rems',[]).some(x=>String(x&&x.id)===id),
+    registrado: !!r.sincronizado,
+    pdf: !leerSeguro('cola_pdf',[]).some(e=>String(e&&e.id)===id),
+    erp: !leerSeguro('fallas_erp',[]).some(e=>String(e&&e.id)===id)
+  };
+}
+function _pipelineHTML(r){
+  const p=_pipelineEstado(r);
+  if(!p)return'';
+  const chip=(ok,etiqueta)=>'<span style="font-size:9px;padding:1px 5px;border-radius:4px;font-weight:600;white-space:nowrap;background:'
+    +(ok?'#dcfce7':'#fef3c7')+';color:'+(ok?'#166534':'#92400e')+'">'+(ok?'✓':'⏳')+' '+etiqueta+'</span>';
+  return '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px">'
+    +chip(p.guardado,'Guardado')+chip(p.registrado,'Registrado')+chip(p.pdf,'PDF')+chip(p.erp,'ERP')
+    +'</div>';
+}
 function renderRems(list){
   const div=document.getElementById('remList');
   if(!list.length){
@@ -4104,6 +4434,7 @@ function renderRems(list){
         <div class="rem-fo">${r.folio} ${etiqueta}</div>
         <div class="rem-cl"><span style="cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();filtrarPorCliente('${escAttr(r.cliente)}');verHist()">${esc(r.cliente)}</span></div>
         <div style="font-size:10.5px;color:var(--muted);margin-top:1px"><span style="color:${saldoColor};font-weight:600">${saldoLabel}</span>${detSuffix?' &middot; '+detSuffix:''}</div>
+        ${_pipelineHTML(r)}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
         ${_estadoBadge(r)}
@@ -4224,6 +4555,7 @@ function _delRemConfirmado(id){
   const folioSrv=(r&&r.folio&&String(r.folio).indexOf('REM-')===0)?r.folio:'';
   const folioLocal=r&&r.folio; // TMP- o REM-, para limpiar colas locales igual
   remisiones=remisiones.filter(x=>String(x.id)!==String(id));
+  _idsBorradosLocal.add(String(id)); // M-08: borrada a propósito, la fusión no la revive
   if(String(remActualId)===String(id)){remActualId=null;renderPagos();}
   persistirRemisiones();renderRems(remisiones.slice(0,15));
   // F-crítico: si la remisión seguía en cola_remisiones (offline, sin sincronizar
@@ -4285,7 +4617,21 @@ async function procesarColaElim(){
 }
 
 // ── #7 Respaldo: exportar/restaurar TODO el estado local (recuperación ante desastre) ──
-const _CLAVES_RESPALDO=['r_rems','r_rems_bak','cola_offline','cola_remisiones','cola_pdf','cola_elim','r_empresa','r_fn','cache_cobros','cache_cobros_ts','device_id'];
+// M-03 (auditoría de robustez 2026-09-10): el respaldo de "TODO" dejaba fuera
+// _cot_historial, cola_cot_r y cola_nuevos -- ninguno aparecía en el archivo
+// exportado. También faltaban cola_resultado_cot (ganada/perdida sin sincronizar),
+// fallas_erp (C-02: ventas que no llegaron al Excel del ERP) y cola_cancel (M-07:
+// cancelaciones sin entregar). Al cambiar de celular o restaurar tras una pérdida,
+// el archivo ahora sí recupera TODAS las operaciones pendientes que la pantalla
+// promete respaldar -- excluir el token sigue siendo correcto y sigue anunciado
+// (ver exportarConfiguracion, que es la copia SIN datos de negocio).
+// r_draft (borrador de REMISIÓN) queda fuera a propósito: loadDraft() lo borra
+// siempre al cargar (decisión de Miguel, "siempre empieza limpio" -- ver hallazgo 4
+// de la auditoría), así que restaurarlo sería un respaldo que nunca se usa.
+// cot_draft_r (borrador de COTIZACIÓN) SÍ se recupera al cargar -- por eso sí entra.
+const _CLAVES_RESPALDO=['r_rems','r_rems_bak','cola_offline','cola_remisiones','cola_pdf','cola_elim','cola_cancel',
+  '_cot_historial','cola_cot_r','cola_nuevos','cola_resultado_cot','cot_draft_r','fallas_erp',
+  'r_empresa','r_fn','cache_cobros','cache_cobros_ts','device_id'];
 function exportarRespaldo(){
   const out={_app:'SUMETEC-remisiones',_fecha:new Date().toISOString(),_version:1,datos:{}};
   _CLAVES_RESPALDO.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)out.datos[k]=v;});
@@ -4328,23 +4674,106 @@ function _avisosArranque(){
     }
   }catch(_){}
 }
+// M-10 (auditoría de robustez 2026-09-10): un respaldo de ayer reemplazaba
+// `r_rems` de hoy sin pedir confirmar el reemplazo, aceptaba CUALQUIER clave de
+// `datos` (no solo las reconocidas) y toleraba errores de escritura individuales
+// sin avisar -- podía dejar una mezcla de bloques nuevos y viejos y de todos
+// modos mostrar éxito.
+
+// Cuenta legible de lo que trae un bloque del respaldo, para el preview.
+function _contarBloqueRespaldo(clave,valor){
+  try{
+    const v=JSON.parse(valor);
+    if(Array.isArray(v)) return v.length;
+  }catch(_){}
+  return null; // no es un arreglo (r_empresa, r_fn, device_id...) — no se cuenta
+}
+function _previewRespaldo(obj){
+  const fecha=obj._fecha?new Date(obj._fecha).toLocaleString('es-MX'):'fecha desconocida';
+  const partes=[];
+  ['r_rems','cola_remisiones','cola_offline','cola_pdf','cola_cancel','_cot_historial','cola_cot_r','cola_nuevos','fallas_erp']
+    .forEach(k=>{
+      if(obj.datos[k]==null)return;
+      const n=_contarBloqueRespaldo(k,obj.datos[k]);
+      if(n) partes.push(n+' '+k);
+    });
+  return {fecha, resumen:partes.length?partes.join(', '):'sin remisiones ni colas pendientes'};
+}
 function importarRespaldo(input){
   const f=input&&input.files&&input.files[0];if(!f){return;}
   const reader=new FileReader();
-  reader.onload=ev=>{
+  reader.onload=async ev=>{
     let obj;
     try{obj=JSON.parse(ev.target.result);}catch(_){toast('Archivo dañado — no es un respaldo válido','err',5000);input.value='';return;}
-    if(!obj||obj._app!=='SUMETEC-remisiones'||!obj.datos){toast('Ese archivo no es un respaldo de Remisiones','err',5000);input.value='';return;}
-    // Red de seguridad: guardar el estado ACTUAL antes de sobrescribir (por si fue por error)
+    if(!obj||obj._app!=='SUMETEC-remisiones'||!obj.datos||typeof obj.datos!=='object'){
+      toast('Ese archivo no es un respaldo de Remisiones','err',5000);input.value='';return;
+    }
+    // Validar claves: solo se procesan las reconocidas. Un archivo ajeno o de una
+    // versión futura con campos desconocidos ya no se aplica a ciegas.
+    const clavesArchivo=Object.keys(obj.datos);
+    const reconocidas=clavesArchivo.filter(k=>_CLAVES_RESPALDO.includes(k));
+    const ignoradas=clavesArchivo.filter(k=>!_CLAVES_RESPALDO.includes(k));
+    if(!reconocidas.length){
+      toast('El archivo no trae ningún bloque reconocido — no se restauró nada','err',6000);input.value='';return;
+    }
+
+    const {fecha,resumen}=_previewRespaldo(obj);
+    const avisoIgnoradas=ignoradas.length?('\n\n⚠️ '+ignoradas.length+' bloque(s) desconocido(s) del archivo se IGNORARÁN: '+ignoradas.join(', ')):'';
+    const eleccion=await _popupBase('🛟 Restaurar respaldo',
+      'Archivo del '+fecha+'.\n\nTrae: '+resumen+'.'+avisoIgnoradas
+      +'\n\n🔀 Fusionar agrega lo del archivo que no tengas aquí, sin tocar lo que ya tienes.'
+      +'\n🔁 Reemplazar sustituye TODO lo de este celular por lo del archivo.',
+      {botones:[
+        {texto:'Cancelar',valor:null,clase:'btn-o'},
+        {texto:'🔀 Fusionar',valor:'fusionar',clase:'btn-o'},
+        {texto:'🔁 Reemplazar',valor:'reemplazar',clase:'btn-p'}
+      ]});
+    if(!eleccion){input.value='';return;}
+
+    // Respaldar el estado ACTUAL antes de tocar nada, y CONFIRMAR que se guardó --
+    // antes se intentaba con try/catch mudo; si fallaba (memoria llena), la
+    // restauración seguía adelante igual, sin red de seguridad real.
+    let respaldoOk=false;
     try{
       const prev={}; _CLAVES_RESPALDO.forEach(k=>{const v=localStorage.getItem(k);if(v!==null)prev[k]=v;});
       localStorage.setItem('_respaldo_antes_de_restaurar',JSON.stringify({fecha:new Date().toISOString(),datos:prev}));
+      respaldoOk=true;
     }catch(_){}
-    let n=0;
-    Object.keys(obj.datos).forEach(k=>{try{localStorage.setItem(k,obj.datos[k]);n++;}catch(_){}});
+    if(!respaldoOk){
+      const seguir=await popupConfirmar(
+        'No se pudo guardar una copia de seguridad del estado actual (memoria llena). '
+        +'Si continúas y algo sale mal, NO habrá forma de deshacerlo.\n\n¿Restaurar de todos modos?',
+        '⚠️ Sin red de seguridad');
+      if(!seguir){input.value='';return;}
+    }
+
+    let n=0, fallos=0;
+    if(eleccion==='reemplazar'){
+      reconocidas.forEach(k=>{try{localStorage.setItem(k,obj.datos[k]);n++;}catch(_){fallos++;}});
+    } else {
+      // Fusionar: los arreglos SUMAN lo que traiga el archivo y no esté ya localmente
+      // (por id cuando el registro lo tiene); nunca se borra ni se pisa lo que ya
+      // había. Las claves que no son arreglo (empresa, folio, device_id…) se
+      // conservan tal cual están en este celular — fusionarlas no tiene sentido.
+      reconocidas.forEach(k=>{
+        try{
+          const entrantes=JSON.parse(obj.datos[k]);
+          if(!Array.isArray(entrantes)){ return; } // escalar: se conserva el local, no se toca
+          const actuales=leerSeguro(k,[]);
+          const idsActuales=new Set(actuales.map(x=>String(x&&x.id!=null?x.id:JSON.stringify(x))));
+          const nuevos=entrantes.filter(x=>!idsActuales.has(String(x&&x.id!=null?x.id:JSON.stringify(x))));
+          if(nuevos.length){ guardarSeguro(k,JSON.stringify(actuales.concat(nuevos))); }
+          n++;
+        }catch(_){ fallos++; }
+      });
+    }
     input.value='';
-    toast('Respaldo restaurado ('+n+' bloques) ✓ — recargando…','ok',2500);
-    setTimeout(()=>location.reload(),1600);
+    if(fallos>0){
+      toast('⚠️ Restaurado con '+fallos+' bloque(s) que fallaron — revisa el espacio del celular','warn',7000);
+    } else {
+      toast((eleccion==='reemplazar'?'Respaldo reemplazado':'Respaldo fusionado')+' ('+n+' bloques) ✓ — recargando…','ok',2500);
+    }
+    setTimeout(()=>location.reload(),1800);
   };
   reader.readAsText(f);
 }
@@ -4412,10 +4841,17 @@ function importarConfiguracion(input){
       });
       renderFooter();
     }
-    // 2) Aplicar URL del servidor
-    if(cfg.url_servidor&&cfg.url_servidor.includes('script.google.com')){
-      localStorage.setItem('drive_url',cfg.url_servidor);
-      localStorage.setItem('gs_url',cfg.url_servidor);
+    // 2) Aplicar URL del servidor — M-11: solo si es un despliegue real de Apps
+    // Script. Un archivo de configuración puede venir de cualquier lado; antes
+    // bastaba con que la cadena 'script.google.com' apareciera en la URL.
+    let _urlRechazada=false;
+    if(cfg.url_servidor){
+      if(_urlAppsScriptValida(cfg.url_servidor)){
+        localStorage.setItem('drive_url',cfg.url_servidor);
+        localStorage.setItem('gs_url',cfg.url_servidor);
+      } else {
+        _urlRechazada=true;
+      }
     }
     // 3) Aplicar logo (si viene en el JSON)
     if(cfg.logo&&cfg.logo.length>100){
@@ -4424,7 +4860,16 @@ function importarConfiguracion(input){
       try{localStorage.setItem('r_logo',cfg.logo);}catch(_){} // puede fallar si es muy grande
     }
     input.value='';
-    toast('Configuración importada ✓ — empresa, URL y logo actualizados. El token NO cambió.','ok',5000);
+    if(_urlRechazada){
+      toast('Configuración importada, pero se IGNORÓ su URL de servidor: no es un Apps Script válido. Se conservó la que ya tenías.','warn',9000);
+      popupAlerta('La URL que traía el archivo no es un despliegue de Apps Script:\n\n'
+        +cfg.url_servidor+'\n\n'
+        +'Debe ser https://script.google.com/macros/s/…/exec\n\n'
+        +'No se cambió tu servidor y tu token nunca se envió a ese destino.',
+        '🔒 URL de servidor rechazada');
+    } else {
+      toast('Configuración importada ✓ — empresa, URL y logo actualizados. El token NO cambió.','ok',5000);
+    }
   };
   reader.readAsText(f);
 }
@@ -4469,6 +4914,7 @@ function _limpiarFormulario(){
   cargarFolioRemoto(); // actualiza con el valor real del servidor
   localStorage.removeItem('r_draft');
   addRow();calcTotals();
+  _actualizarChkCorreo();
 }
 
 function applyLogoH(h){
@@ -4661,10 +5107,10 @@ async function _tgGuardar(){
 // antes de este cambio, o el usuario pospuso el aviso), lo pide UNA vez al
 // abrir -- no bloquea el trabajo, pero se lo vuelve a preguntar la próxima
 // vez si lo pospone otra vez.
-function _vendedorGateCheck(){
+async function _vendedorGateCheck(){
   if(!API_TOKEN)return; // el tokenGate ya se encarga de este caso
   if((empresaOverride.vendedor||'').trim())return; // ya lo tiene
-  const nombre=(prompt('Para identificar de qué celular vienen tus datos, escribe tu nombre:')||'').trim();
+  const nombre=((await popupPrompt('Para identificar de qué celular vienen tus datos, escribe tu nombre:','','👤 ¿Quién eres?'))||'').trim();
   if(nombre){
     empresaOverride.vendedor=nombre;
     localStorage.setItem('r_empresa',JSON.stringify(empresaOverride));
@@ -4691,7 +5137,6 @@ async function _pegarToken(){
 function abrirCatalogos(){
   document.getElementById('gs_url').value=localStorage.getItem('gs_url')||'';
   document.getElementById('gsSync').textContent=localStorage.getItem('gs_sync')||'—';
-  document.getElementById('drive_url').value=localStorage.getItem('drive_url')||'';
   const inp=document.getElementById('api_token_input');
   if(inp){inp.value=localStorage.getItem('api_token')||'';inp.type='password';}
   const b=document.getElementById('btnVerToken');if(b)b.textContent='👁️ Ver';
@@ -4700,14 +5145,18 @@ function abrirCatalogos(){
   _actualizarSyncLocalStatus();
   document.getElementById('ovCat').classList.add('open');
 }
-// VERSION_DEPLOY viene de version.js (lo escribe build_deploy.py en cada
-// corrida, con la hora real en que se generó ese deploy). "Última
-// actualización" es la última vez que un service worker NUEVO tomó control
-// en ESTE dispositivo -- si nunca ha habido una, se avisa en vez de mentir.
+// VERSION_DEPLOY y VERSION_CODIGO vienen de version.js (los escribe
+// build_deploy.py en cada corrida): la hora real del build y el mismo hash
+// que sw.js usa como nombre de caché ('sumetec-rem-<código>') -- así se puede
+// confirmar a simple vista si dos celulares quedaron en la misma versión sin
+// tener que ir a abrir DevTools. "Última actualización" es la última vez que
+// un service worker NUEVO tomó control en ESTE dispositivo -- si nunca ha
+// habido una, se avisa en vez de mentir.
 function _mostrarVersionInstalada(){
   const elV=document.getElementById('version-deploy');
   if(elV) elV.textContent = (typeof VERSION_DEPLOY!=='undefined' && VERSION_DEPLOY)
-    ? 'Versión instalada: '+new Date(VERSION_DEPLOY).toLocaleString('es-MX',{dateStyle:'medium',timeStyle:'short'})
+    ? 'Act. software: '+(typeof VERSION_CODIGO!=='undefined'&&VERSION_CODIGO?VERSION_CODIGO+' · ':'')
+      +new Date(VERSION_DEPLOY).toLocaleString('es-MX',{dateStyle:'medium',timeStyle:'short'})
     : '';
   const elU=document.getElementById('ultima-actualizacion');
   if(!elU) return;
@@ -4726,6 +5175,12 @@ async function conectarGS(){
   const url=document.getElementById('gs_url').value.trim();
   const st=document.getElementById('gsStatus');
   if(!url){st.innerHTML='<span style="color:#C0392B">⚠️ Ingresa la URL del Apps Script</span>';return}
+  // M-11: esta pantalla no validaba NADA antes de mandarle lecturas (con el token
+  // en el cuerpo) a la URL escrita. Ahora el destino se comprueba primero.
+  if(!_urlAppsScriptValida(url)){
+    st.innerHTML='<span style="color:#C0392B">✗ Esa no es una URL de Apps Script. Debe ser https://script.google.com/macros/s/…/exec</span>';
+    return;
+  }
   st.innerHTML='<span style="color:var(--muted)">⏳ Conectando…</span>';
   try{
     const [rP,rC]=await Promise.all([_postLectura(url,'catalogo'),_postLectura(url,'clientes')]);
@@ -4734,9 +5189,18 @@ async function conectarGS(){
     const jP=await rP.json(),jC=await rC.json();
     if(jP.error)throw new Error(jP.error);
     if(jC.error)throw new Error(jC.error);
+    // 2026-09-10: mismo guardián que refrescarCatalogo() — un catálogo vacío no
+    // sobrescribe uno bueno que ya tenías cargado.
+    if(Array.isArray(jP)&&jP.length===0&&PRODUCTOS.length>0){
+      st.innerHTML='<span style="color:#C0392B">⚠️ El ERP todavía no ha publicado catálogo (0 productos) — se conserva el que ya tenías</span>';
+      return;
+    }
     PRODUCTOS=jP.map(p=>({clave:p.CODIGO||'',desc:p.DESCRIPCION||'',precio:+p.COSTO_CLIENTE||0,costo:+(p['COSTO PROVEEDOR']||p.COSTO_PROVEEDOR||p.COSTO||0),costoIva:+(p.COSTO_PROVEEDOR_IVA||0),iva:ivaGlobal})).filter(p=>p.clave);
     CLIENTES=jC.map(c=>({nombre:c.NOMBRE||'',rfc:c.RFC||'',dir:c.DIRECCION||'',cp:c.CP||'',tel:c.TEL||'',email:c.CORREO||'',contacto:c.CONTACTO||''})).filter(c=>c.nombre);
     localStorage.setItem('gs_url',url);
+    // Un solo campo en pantalla → la misma URL sirve para catálogo/clientes y para Drive/folios
+    // (mejora 2026-09-10: antes eran dos campos idénticos que confundían).
+    localStorage.setItem('drive_url',url);
     localStorage.setItem('gs_cp',JSON.stringify(PRODUCTOS));
     localStorage.setItem('gs_cc',JSON.stringify(CLIENTES));
     const now=new Date().toLocaleString('es-MX');localStorage.setItem('gs_sync',now);
@@ -4744,9 +5208,9 @@ async function conectarGS(){
     st.innerHTML='<span style="color:var(--green)">✓ '+PRODUCTOS.length+' productos y '+CLIENTES.length+' clientes cargados</span>';toast('Catálogos actualizados ✓','ok');
   }catch(e){st.innerHTML='<span style="color:#C0392B">✗ Error: '+e.message+'</span>';}
 }
-function limpiarGS(){
-  if(!confirm('¿Desconectar Apps Script?'))return;
-  ['gs_url','gs_cp','gs_cc','gs_sync','gs_hp'].forEach(k=>localStorage.removeItem(k));
+async function limpiarGS(){
+  if(!(await popupConfirmar('¿Desconectar Apps Script?','🔌 Desconectar')))return;
+  ['gs_url','drive_url','gs_cp','gs_cc','gs_sync','gs_hp'].forEach(k=>localStorage.removeItem(k));
   PRODUCTOS=[];CLIENTES=[];HISTORIAL_PRECIOS=new Map();
   document.getElementById('gs_url').value='';
   document.getElementById('gsStatus').textContent='Desconectado';document.getElementById('gsSync').textContent='—';toast('Desconectado');
@@ -4778,12 +5242,12 @@ function _actualizarSyncLocalStatus(){
   btn.disabled=!puede;
   btn.style.opacity=puede?'1':'.5';
 }
-function limpiarHistorialLocal(){
+async function limpiarHistorialLocal(){
   const pend=leerSeguro('cola_offline',[]).length+leerSeguro('cola_remisiones',[]).length+leerSeguro('cola_pdf',[]).length;
   if(!isOnline||pend>0){toast('Todavía hay pendientes por sincronizar','warn',4000);return;}
   const n=(remisiones||[]).length;
   if(!n){toast('No hay remisiones locales que borrar','warn',3000);return;}
-  if(!confirm('¿Borrar las '+n+' remisión'+(n>1?'es':'')+' guardadas en ESTE celular?\n\nYa están sincronizadas con el servidor — esto solo limpia la copia local, no afecta lo que ya está en el sistema.'))return;
+  if(!(await popupConfirmar('¿Borrar las '+n+' remisión'+(n>1?'es':'')+' guardadas en ESTE celular?\n\nYa están sincronizadas con el servidor — esto solo limpia la copia local, no afecta lo que ya está en el sistema.','🧹 Borrar historial local')))return;
   localStorage.removeItem('r_rems');
   localStorage.removeItem('r_rems_bak');
   remisiones=[];
@@ -4858,6 +5322,16 @@ async function refrescarCatalogo(silencioso){
     const jHP=rHP&&rHP.ok?await rHP.json().catch(()=>null):null;
     const jCfg=rCfg&&rCfg.ok?await rCfg.json().catch(()=>null):null;
     if(jP.error||jC.error)return;
+    // 2026-09-10 (auditoría Cotizador): un productos.csv vacío (el ERP nunca ha
+    // publicado, o la propiedad ENTORNO/carpeta apunta a otro lado) NO es "el
+    // catálogo se quedó en 0 productos" -- es "no hay nada que descargar todavía".
+    // Antes esto sobrescribía silenciosamente un catálogo local bueno con uno
+    // vacío y sellaba 'gs_sync' como si hubiera funcionado.
+    if(Array.isArray(jP)&&jP.length===0){
+      console.warn('refrescarCatalogo: el ERP respondió 0 productos -- se conserva el catálogo local');
+      if(!silencioso)toast('⚠️ El ERP todavía no ha publicado catálogo — se conserva el que ya tenías','warn',5500);
+      return;
+    }
     // Ecosistema centralizado (2026-09): EMPRESA + IVA + FORMAS_PAGO. Nunca
     // truena si el ERP todavía no publicó nada (jCfg.datos llega {}).
     if(jCfg&&jCfg.ok&&jCfg.datos){
@@ -4942,17 +5416,31 @@ function abrirNuevoCliente(){
 // H-2: precarga con lo que YA hay en el formulario de remisión (incluye los
 // campos ocultos c_rfc/c_email/c_contacto/c_persona_moral) -- si el cliente ya
 // existe, esto es "editar"; si el nombre está vacío, es "agregar" desde cero.
+// Busca en CLIENTES (catálogo ERP+Maestro ya combinado) por nombre exacto (sin
+// distinguir mayúsculas/espacios extra).
+function _buscarClienteCatalogo(nombre){
+  const q=(nombre||'').trim().toLowerCase();
+  if(!q)return null;
+  return CLIENTES.find(c=>(c.nombre||'').trim().toLowerCase()===q)||null;
+}
 function abrirMasDatosCliente(){
   _ncModo='masdatos';
   const g=id=>document.getElementById(id)?.value||'';
-  document.getElementById('nc_nombre').value=g('c_nombre');
-  document.getElementById('nc_dir').value=g('c_dir');
-  document.getElementById('nc_cp').value=g('c_cp');
-  document.getElementById('nc_tel').value=g('c_tel');
-  document.getElementById('nc_rfc').value=g('c_rfc');
-  document.getElementById('nc_email').value=g('c_email');
-  document.getElementById('nc_contacto').value=g('c_contacto');
-  const pm=document.getElementById('nc_persona_moral');if(pm)pm.checked=g('c_persona_moral')==='1';
+  const nombreActual=g('c_nombre');
+  // 2026-09-10 (hallazgo 6, auditoría Cotizador): antes solo mostraba lo que ya
+  // estaba escrito en pantalla -- si el cliente YA existe en el catálogo (ERP o
+  // Maestro) con correo/contacto/persona moral capturados en otra visita, se
+  // precargan aquí también (solo rellena lo que esté vacío, nunca pisa lo que
+  // el vendedor ya escribió en esta remisión).
+  const delCatalogo=_buscarClienteCatalogo(nombreActual)||{};
+  document.getElementById('nc_nombre').value=nombreActual;
+  document.getElementById('nc_dir').value=g('c_dir')||delCatalogo.dir||'';
+  document.getElementById('nc_cp').value=g('c_cp')||delCatalogo.cp||'';
+  document.getElementById('nc_tel').value=g('c_tel')||delCatalogo.tel||'';
+  document.getElementById('nc_rfc').value=g('c_rfc')||delCatalogo.rfc||'';
+  document.getElementById('nc_email').value=g('c_email')||delCatalogo.email||'';
+  document.getElementById('nc_contacto').value=g('c_contacto')||delCatalogo.contacto||'';
+  const pm=document.getElementById('nc_persona_moral');if(pm)pm.checked=(g('c_persona_moral')==='1')||!!delCatalogo.personaMoral;
   const t=document.getElementById('ncTitulo');
   if(t)t.textContent=g('c_nombre').trim()?'✏️ Más datos del cliente':'👤 Agregar datos del cliente';
   // En modo "más datos" no aplica guardarlo como cliente NUEVO del catálogo
@@ -4986,7 +5474,7 @@ function guardarNuevoCliente(soloAhora){
     const idx=CLIENTES.findIndex(c=>(c.nombre||'').trim().toLowerCase()===nombre.toLowerCase());
     if(idx>=0)CLIENTES[idx]={...CLIENTES[idx],...cl,id:CLIENTES[idx].id};
     toast('Datos del cliente actualizados ✓','ok');
-    closeOv('ovNuevoCliente'); autosave();
+    closeOv('ovNuevoCliente'); autosave(); _actualizarChkCorreo();
     // Restaurar el modal a su estado normal para la próxima vez que se use como "nuevo".
     document.getElementById('ncBtnGuardar').style.display='';
     document.getElementById('ncBtnSoloAhora').textContent='⚡ Solo usar ahora';
@@ -5001,9 +5489,18 @@ function guardarNuevoCliente(soloAhora){
   } else {
     toast('Cliente cargado en formulario ✓','ok');
   }
-  ['nombre','dir','cp','tel','rfc','email','contacto'].forEach(f=>{const el=document.getElementById('c_'+f);if(el)el.value=cl[f]||''});
-  const pmEl=document.getElementById('c_persona_moral');if(pmEl)pmEl.value=cl.personaMoral?'1':'';
-  closeOv('ovNuevoCliente'); autosave();
+  // 2026-09-10 (hallazgo 5, auditoría Cotizador): "+ Agregar nuevo cliente" vive tanto en
+  // Remisiones como en Cotizaciones, pero antes SIEMPRE llenaba los campos c_* de la
+  // remisión (aunque estuviera oculta) y la cotización se quedaba vacía. Ahora revisa en
+  // cuál pantalla estás realmente.
+  if(_enModoCotizacion()){
+    ['nombre','dir','cp','tel','rfc','email','contacto'].forEach(f=>{const el=document.getElementById('cot_c_'+f);if(el)el.value=cl[f]||''});
+    closeOv('ovNuevoCliente'); autosaveCot();
+  } else {
+    ['nombre','dir','cp','tel','rfc','email','contacto'].forEach(f=>{const el=document.getElementById('c_'+f);if(el)el.value=cl[f]||''});
+    const pmEl=document.getElementById('c_persona_moral');if(pmEl)pmEl.value=cl.personaMoral?'1':'';
+    closeOv('ovNuevoCliente'); autosave(); _actualizarChkCorreo();
+  }
 }
 
 // ── NUEVO PRODUCTO ─────────────────────────────────────────
@@ -5013,7 +5510,7 @@ function abrirNuevoProducto(rowId, prefill){
   document.getElementById('np_clave').value = prefill||'';
   document.getElementById('np_desc').value = '';
   document.getElementById('np_precio').value = '';
-  document.getElementById('np_iva').value = '16';
+  const ivaInfo=document.getElementById('npIvaInfo');if(ivaInfo)ivaInfo.textContent=ivaGlobal;
   const info = document.getElementById('npTargetInfo');
   info.textContent = rowId != null ? 'Se insertará en la fila seleccionada de la tabla.' : 'Se agregará como nueva fila al final.';
   document.getElementById('ovNuevoProducto').classList.add('open');
@@ -5023,7 +5520,7 @@ function guardarNuevoProducto(soloAhora){
   const clave=document.getElementById('np_clave').value.trim();
   const desc=document.getElementById('np_desc').value.trim();
   const precio=parseFloat(document.getElementById('np_precio').value)||0;
-  const iva=parseFloat(document.getElementById('np_iva').value)||16;
+  const iva=ivaGlobal; // hereda el IVA de la remisión — ver hallazgo "IVA confuso" de la auditoría 2026-09-10
   if(!clave||!desc){toast('Código y descripción son obligatorios','err');return}
   const prod={clave,desc,precio,iva};
   if(!soloAhora){
@@ -5764,6 +6261,7 @@ function setAtajoMonto(pct){
   const base=r?r.saldo:_calcTotalFormulario();
   if(base<=0)return;
   document.getElementById('montoAbono').value=Math.round(base*pct*100)/100;
+  _actualizarPreviewMonto('montoAbono','montoAbonoFmt');
 }
 
 function onCheckPagado(checked){
@@ -5777,8 +6275,17 @@ function onCheckPagado(checked){
   }
   if(checked){
     if(r&&r.estado!=='pagado'){
+      // 2026-09-10 (hallazgo 2): igual que en registrarTodo() -- no liquidar con un
+      // método de pago vacío que caería en "Efectivo" por default.
+      const _metChk=document.getElementById('metodoAbono')?.value;
+      if(!_metChk){
+        toast('⚠️ Elige el método de pago antes de marcar como pagado','err',4500);
+        const ch=document.getElementById('checkPagado'); if(ch)ch.checked=false;
+        document.getElementById('metodoAbono')?.focus();
+        return;
+      }
       // Remisión ya guardada → liquidar de inmediato vía función única
-      const pago=aplicarPago(r, r.saldo, {completo:true});
+      const pago=aplicarPago(r, r.saldo, {completo:true, metodo:_metChk});
       if(pago){ if(wm){wm.style.display='flex';wm.style.animation='wm-aparecer .4s ease';} if(aa)aa.style.display='none'; }
       else { const ch=document.getElementById('checkPagado'); if(ch)ch.checked=false; }
     } else if(!r){
@@ -5875,6 +6382,18 @@ function _desbloquearFormulario(){
 function _faltanDatos(){
   const nombre=(document.getElementById('c_nombre')?.value||'').trim();
   if(!nombre) return 'Falta el NOMBRE del cliente.';
+  // M-05 (auditoría de robustez 2026-09-10): un descuento fuera de 0–100 genera
+  // importes incoherentes (con 150% el total se vuelve negativo). Se rechaza aquí,
+  // antes de registrar, en vez de confiar solo en el min/max del campo.
+  const _dp=document.getElementById('descPct')?.value;
+  if(_dp!==''&&_dp!=null&&!descuentoValido(_dp)){
+    return 'El DESCUENTO global debe estar entre 0 y 100% (ahora dice "'+_dp+'").';
+  }
+  const _malos=items.filter(i=>(+i.qty>0||String(i.clave||i.desc||'').trim())&&!renglonValido(i));
+  if(_malos.length){
+    return 'Hay renglones con cantidad o precio inválido:\n'
+      +_malos.map(i=>'• '+(i.clave||i.desc||'producto sin nombre')).join('\n');
+  }
   const incompletos=items.filter(i=>(+i.qty>0)&&(!(String(i.desc||'').trim())||(!i.regalo&&!(+i.precio>0))));
   if(incompletos.length){
     const lista=incompletos.map(i=>'• '+((i.clave||i.desc||'producto sin nombre'))).join('\n');
@@ -5882,10 +6401,10 @@ function _faltanDatos(){
   }
   return '';
 }
-function descargarPDFSiRegistrado(){
+async function descargarPDFSiRegistrado(){
   if(!remActualId){toast('Pulsa REGISTRAR primero para guardar la remisión','warn',3500);return;}
   const falta=_faltanDatos();
-  if(falta){ toast('⚠️ No se puede descargar: '+falta.split('\n')[0],'err',5000); alert('No se puede descargar el PDF:\n\n'+falta); return; }
+  if(falta){ toast('⚠️ No se puede descargar: '+falta.split('\n')[0],'err',5000); popupAlerta(falta,'📄 No se puede descargar el PDF'); return; }
   const rem=remisiones.find(r=>String(r.id)===String(remActualId));
   if(rem&&rem.data){
     // forzarDescarga=true → genera desde datos guardados (con pagos actualizados) Y descarga al celular
@@ -5919,8 +6438,24 @@ async function registrarTodo(){
   const _falta=_faltanDatos();
   if(_falta){
     toast('⚠️ '+_falta.split('\n')[0],'err',5000);
-    alert('No se puede registrar todavía:\n\n'+_falta+'\n\n(Si un producto es cortesía, márcalo como 🎁 Regalo.)');
+    popupAlerta(_falta+'\n\n(Si un producto es cortesía, márcalo como 🎁 Regalo.)','📋 No se puede registrar todavía');
     return;
+  }
+
+  // 2026-09-10 (hallazgo 2, auditoría Cotizador): si se va a registrar un pago (pagado
+  // completo o abono con monto), el método de pago YA NO puede quedar vacío y caer en
+  // "Efectivo" por default silencioso -- eso infla el corte de caja cuando el cliente
+  // pagó por transferencia/tarjeta y nadie tocó el selector. No aplica si no hay pago
+  // (la remisión puede registrarse a crédito sin método todavía).
+  {
+    const _chkPagadoPre=document.getElementById('checkPagado')?.checked;
+    const _montoPre=Math.round(parseFloat(document.getElementById('montoAbono')?.value||0)*100)/100;
+    const _hayPagoPre=_chkPagadoPre||(_pagoPreparado&&_pagoPreparado.tipo==='completo')||_montoPre>0;
+    if(_hayPagoPre&&!document.getElementById('metodoAbono')?.value){
+      toast('⚠️ Elige el método de pago (efectivo, transferencia…) antes de registrar','err',5000);
+      document.getElementById('metodoAbono')?.focus();
+      return;
+    }
   }
 
   // Mejora #1 (menú COTIZADOR): avisar si algún renglón se vende por DEBAJO de
@@ -5929,7 +6464,7 @@ async function registrarTodo(){
   const _bajoCosto=activos.filter(i=>!i.regalo&&(+i.costo||0)>0&&(+i.precio||0)<(+i.costo||0));
   if(_bajoCosto.length){
     const detalle=_bajoCosto.map(i=>'• '+(i.clave||i.desc||'producto')+': precio $'+(+i.precio||0).toFixed(2)+' < costo $'+(+i.costo||0).toFixed(2)).join('\n');
-    if(!confirm('⚠️ '+_bajoCosto.length+' producto(s) se venden BAJO su costo de proveedor:\n\n'+detalle+'\n\n¿Registrar de todos modos?')) return;
+    if(!(await popupConfirmar(_bajoCosto.length+' producto(s) se venden BAJO su costo de proveedor:\n\n'+detalle+'\n\n¿Registrar de todos modos?','⚠️ Venta bajo costo'))) return;
   }
 
   // Mejora #3 (menú 2026-09-02): "¿le sigo dando crédito a este?" -- si la
@@ -5954,7 +6489,7 @@ async function registrarTodo(){
           +'.\n\nEsta venta de '+fmt(_totalVenta)+' MXN se está registrando SIN pago completo,'
           +' así que su deuda quedaría en '+fmt(Math.round((_d.saldo+_totalVenta)*100)/100)+' MXN.'
           +'\n\n¿Registrar de todos modos?';
-        if(!confirm(_msg)) return;
+        if(!(await popupConfirmar(_msg,'💳 Cliente con deuda pendiente'))) return;
       }
     }
   }catch(_){ /* el aviso nunca debe impedir registrar una venta */ }
@@ -5970,9 +6505,25 @@ async function registrarTodo(){
     ]);
 
     // 1) Guardar/actualizar remisión
-    await registrarRemision(gps);
+    const _resGuardado=await registrarRemision(gps);
     // Limpiar toast "Obteniendo folio…" de inmediato — no esperar al Drive
     toast('','',1);
+
+    // M-09 (auditoría de robustez 2026-09-10): si la escritura en este celular falló
+    // (memoria llena), la venta vive SOLO en memoria. Antes el flujo seguía igual —
+    // pantalla de confirmación, saldo y PDF — y se comportaba como una operación
+    // terminada; al cerrar la app se perdía. Ahora se detiene aquí y se ofrece la
+    // salida explícita: descargar los datos para no perder la venta.
+    if(_resGuardado&&_resGuardado.ok===false){
+      const _f=_resGuardado.folio||'la remisión';
+      const _rescatar=await popupConfirmar(
+        'La memoria de este celular está llena y '+_f+' NO se pudo guardar aquí.\n\n'
+        +'La venta sigue en pantalla, pero se perderá si cierras la app.\n\n'
+        +'¿Descargar ahora un archivo con todos tus datos para no perderla?',
+        '⚠️ No se pudo guardar en este celular');
+      if(_rescatar) _descargarLocalStorage();
+      return; // NO se confirma como venta terminada
+    }
 
     // 2) Aplicar pago: checkbox "PAGO COMPLETO" o monto en el campo (vía función única).
     //    El guard `estado!=='pagado'` evita el doble-pago si onCheckPagado ya liquidó.
@@ -5990,6 +6541,7 @@ async function registrarTodo(){
           aplicarPago(r, montoInput, {metodo:_metAbono, notas:_notAbono});
         }
         document.getElementById('montoAbono').value='';
+        _actualizarPreviewMonto('montoAbono','montoAbonoFmt');
         if(r.estado==='pagado'){
           const wm=document.getElementById('wmPagado');
           if(wm){wm.style.display='flex';wm.style.animation='wm-aparecer .4s ease';}
@@ -6073,18 +6625,23 @@ async function confirmarCancelacion(){
   const _sIdx=_histServidor.findIndex(x=>x.folio===r.folio||String(x.id)===String(r.id));
   if(_sIdx>=0)_histServidor[_sIdx].estado='cancelada';
   persistirRemisiones();
+  // M-07: encolar ANTES de anunciar éxito. Así la cancelación (con su motivo y fecha)
+  // queda pendiente de entrega aunque no haya señal, cuenta en _pendientesTotal() y se
+  // reintenta con el MISMO id por la ruta cancelar_remision del servidor -- no como una
+  // remisión genérica, que no lleva motivo ni actualiza los datos de la cancelación.
+  _encolarCancelacion(r,motivo);
   closeOv('ovCancelar');_cancelarId=null;_cancelarFolio=null;
   if(remActualId===r.id)renderPagos();
   // Bug 7: re-renderizar el historial completo (local + servidor) para que muestre "cancelada" de inmediato
   _renderHistCombinado();
-  toast('Remisión '+r.folio+' cancelada','ok');
-  // Sincronizar cancelación con Sheets
+  toast(isOnline?('Remisión '+r.folio+' cancelada'):('Remisión '+r.folio+' cancelada — ⏳ pendiente de enviar al volver la señal'),isOnline?'ok':'warn',isOnline?3000:6000);
+  // Sincronizar cancelación con Sheets (si falla, se queda en cola_cancel y se reintenta)
   const url=getScriptUrl();
   if(url&&isOnline){
     fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},
-      body:JSON.stringify({tipo:'cancelar_remision',id:r.id,folio:r.folio,motivo,device:_deviceLabel_()})
+      body:JSON.stringify({tipo:'cancelar_remision',token:API_TOKEN,id:r.id,folio:r.folio,motivo,fechaCancelacion:r.fechaCancelacion,device:_deviceLabel_()})
     }).then(res=>res.json()).then(d=>{
-      if(d&&d.ok){r.sincronizado=true;persistirRemisiones();}
+      if(d&&d.ok){r.sincronizado=true;persistirRemisiones();_dequeueCancelacion(r.id);actualizarBadgePendientes();}
       if(typeof guardarEventoSync==='function')guardarEventoSync({folio:r.folio,operacion:'CANCELACION_GUARDADA',resultado:(d&&d.ok)?'OK':'ERROR',detalle:(d&&d.error)||''});
     }).catch(()=>{if(typeof guardarEventoSync==='function')guardarEventoSync({folio:r.folio,operacion:'CANCELACION_GUARDADA',resultado:'ERROR',detalle:'sin conexión'});});
   }
@@ -6493,6 +7050,7 @@ function _fallasPendientes(){
   add('cola_offline','Pago sin registrar');
   add('cola_cot_r','Cotización sin guardar');
   add('cola_elim','Remisión sin eliminar');
+  add('cola_cancel','Cancelación sin registrar'); // M-07
   return out;
 }
 // Muestra/oculta el aviso rojo fijo según haya documentos atorados.
@@ -6556,7 +7114,7 @@ function verEstado(){
 function _reintentarTodo(){
   if(!isOnline){toast('Sin conexión — se reintentará solo al volver la señal','warn',4000);return;}
   toast('🔄 Reintentando envíos…','ok',3000);
-  procesarColaElim();procesarColaRemisiones();procesarCola();procesarColaPDF();_procesarColaCotR();procesarColaNuevos();_procesarColaResultadoCot();
+  procesarColaElim();procesarColaRemisiones();procesarCola();procesarColaPDF();_procesarColaCotR();procesarColaNuevos();procesarColaCancel();_procesarColaResultadoCot();
   _reintentarERP(); // C-02: reenvía las ventas que no llegaron al ERP
   setTimeout(()=>{actualizarBadgePendientes();verEstado();},2500);
 }
@@ -6852,8 +7410,79 @@ function borrarFirma(){
   autosave();
 }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+// ── Preview de dinero en vivo (doc COTIZADOR.docx, 2026-09-10) ────────────────
+// "El total no tiene comas ni signo de pesos en la casilla para poner el monto."
+// Los inputs de monto siguen siendo type="number" (así ningún parseFloat en el
+// código se topa con "$1,234.56" y lee mal) -- esto solo pinta abajo, en vivo,
+// cómo se va a leer ese número, con $ y comas de verdad (misma fmt() del Total).
+function _actualizarPreviewMonto(inputId,previewId){
+  const inp=document.getElementById(inputId), prev=document.getElementById(previewId);
+  if(!inp||!prev)return;
+  const n=parseFloat(inp.value);
+  prev.textContent=(n>0)?('= '+fmt(n)+' MXN'):'';
+}
 let _toastTimer=null;
 function toast(msg,type='',dur=2800){const t=document.getElementById('toast');clearTimeout(_toastTimer);t.textContent=msg;t.className='toast'+(type?' '+type:'');t.classList.add('show');if(dur>0)_toastTimer=setTimeout(()=>t.classList.remove('show'),dur);}
+
+// ── Popup del sistema (doc COTIZADOR.docx, 2026-09-10) ────────────────────────
+// Reemplaza alert()/confirm()/prompt() nativos: el navegador puede bloquearlos en
+// PWA/iframe (ya pasaba con confirm(), ver comentarios viejos junto a los call
+// sites), y no llevan la marca SUMETEC. Un solo modal reutilizable (#ovPopupSistema)
+// con 3 formas de uso, todas devuelven una Promise (igual que las nativas son
+// síncronas, pero como esta SÍ puede esperar al toque del usuario, los call sites
+// que decidían con el resultado se vuelven `async` y usan `await`).
+let _popSisResolve=null;
+function _popupCerrar(valor){
+  document.getElementById('ovPopupSistema').classList.remove('open');
+  const r=_popSisResolve; _popSisResolve=null;
+  if(r)r(valor);
+}
+function _popupBase(titulo,mensaje,opts){
+  opts=opts||{};
+  return new Promise(resolve=>{
+    _popSisResolve=resolve;
+    document.getElementById('popSisTitulo').textContent=titulo||'⚠️ Aviso';
+    document.getElementById('popSisMsg').textContent=mensaje||'';
+    const inputWrap=document.getElementById('popSisInputWrap');
+    const input=document.getElementById('popSisInput');
+    if(opts.input){
+      inputWrap.style.display='';
+      input.value=opts.valorDefault||'';
+      setTimeout(()=>input.focus(),50);
+    } else {
+      inputWrap.style.display='none';
+    }
+    const botones=document.getElementById('popSisBotones');
+    botones.innerHTML='';
+    (opts.botones||[{texto:'Entendido',valor:true,clase:'btn-p'}]).forEach(b=>{
+      const btn=document.createElement('button');
+      btn.className='btn '+(b.clase||'btn-o');
+      btn.style.cssText='flex:1;justify-content:center;padding:11px;font-weight:700'+(b.clase!=='btn-p'?';background:var(--bg);color:var(--navy);border:none':'');
+      btn.textContent=b.texto;
+      btn.onclick=()=>_popupCerrar(b.useInput?input.value:b.valor);
+      botones.appendChild(btn);
+    });
+    document.getElementById('ovPopupSistema').classList.add('open');
+  });
+}
+// Reemplaza alert(msg) -- un solo botón "Entendido".
+async function popupAlerta(mensaje,titulo){
+  return _popupBase(titulo||'⚠️ Aviso',mensaje,{botones:[{texto:'Entendido',valor:true,clase:'btn-p'}]});
+}
+// Reemplaza confirm(msg) -- devuelve true/false, igual que la nativa.
+async function popupConfirmar(mensaje,titulo){
+  return _popupBase(titulo||'¿Confirmar?',mensaje,{botones:[
+    {texto:'Cancelar',valor:false,clase:'btn-o'},
+    {texto:'Confirmar',valor:true,clase:'btn-p'}
+  ]});
+}
+// Reemplaza prompt(msg,default) -- devuelve el texto o null si canceló.
+async function popupPrompt(mensaje,valorDefault,titulo){
+  return _popupBase(titulo||'✏️ Escribe',mensaje,{input:true,valorDefault,botones:[
+    {texto:'Cancelar',valor:null,clase:'btn-o'},
+    {texto:'Aceptar',useInput:true,clase:'btn-p'}
+  ]});
+}
 </script>
 <!-- Modales de confirmación para cambio de modo (sin confirm() nativo) -->
 <div class="ov" id="ovConfirmCot">
@@ -7582,10 +8211,13 @@ function _confirmarAntesDeGenerarCot(){
   if(!nombre){toast('Falta el nombre del cliente','err');return;}
   const activos=_cotItems.filter(it=>it.clave||it.desc||(+it.qty>0));
   if(!activos.length){toast('Agrega al menos un producto','err');return;}
-  const invalidos=_cotItems.filter(it=>(it.clave||it.desc||(+it.qty>0))&&(!it.clave||!(+it.precio>0)));
+  // M-06 (auditoría de robustez 2026-09-10): un renglón con código/precio pero
+  // cantidad 0 (o vacía) pasaba esta validación -- la cotización se generaba por
+  // $0.00. La validación exigía código y precio, pero nunca cantidad positiva.
+  const invalidos=_cotItems.filter(it=>(it.clave||it.desc||(+it.qty>0))&&(!it.clave||!(+it.precio>0)||!(+it.qty>0)));
   if(invalidos.length){
     invalidos.forEach(it=>{const tr=document.getElementById('cotrow-'+it._id);if(tr){tr.style.background='#FFE8E8';setTimeout(()=>{tr.style.background=''},3000);}});
-    toast('Faltan código o precio en filas marcadas en rojo','err');return;
+    toast('Faltan código, precio o cantidad en filas marcadas en rojo','err');return;
   }
   if(_ivaGlobalCot===null){
     const wrap=document.getElementById('cot_ivaWrap');
@@ -7615,10 +8247,13 @@ async function _generarCotizacion(){
   if(!nombre){toast('Falta el nombre del cliente','err');return;}
   const activos=_cotItems.filter(it=>it.clave||it.desc||(+it.qty>0));
   if(!activos.length){toast('Agrega al menos un producto','err');return;}
-  const invalidos=_cotItems.filter(it=>(it.clave||it.desc||(+it.qty>0))&&(!it.clave||!(+it.precio>0)));
+  // M-06 (auditoría de robustez 2026-09-10): un renglón con código/precio pero
+  // cantidad 0 (o vacía) pasaba esta validación -- la cotización se generaba por
+  // $0.00. La validación exigía código y precio, pero nunca cantidad positiva.
+  const invalidos=_cotItems.filter(it=>(it.clave||it.desc||(+it.qty>0))&&(!it.clave||!(+it.precio>0)||!(+it.qty>0)));
   if(invalidos.length){
     invalidos.forEach(it=>{const tr=document.getElementById('cotrow-'+it._id);if(tr){tr.style.background='#FFE8E8';setTimeout(()=>{tr.style.background=''},3000);}});
-    toast('Faltan código o precio en filas marcadas en rojo','err');return;
+    toast('Faltan código, precio o cantidad en filas marcadas en rojo','err');return;
   }
   // I-2: no se puede generar sin elegir IVA (0/8/16%) -- nunca se asume un default.
   if(_ivaGlobalCot===null){
@@ -8347,17 +8982,44 @@ if('serviceWorker' in navigator){
   let _swRecargado=false;
   let _huboControlador=!!navigator.serviceWorker.controller; // ¿ya había SW al cargar?
   const _modalesCobro=['ovPagoRapido','ovCancelar','ovAnular','ovFirma'];
-  const _ocupado=()=>_modalesCobro.some(id=>document.getElementById(id)?.classList.contains('open'));
+  const _modalOcupado=()=>_modalesCobro.some(id=>document.getElementById(id)?.classList.contains('open'));
+  // M-13 (auditoría de robustez 2026-09-10): la recarga por actualización solo
+  // esperaba a que se cerraran esos 3-4 modales de cobro/cancelación/firma -- no
+  // protegía CUALQUIER captura en curso. Un formulario de remisión o cotización a
+  // medio llenar, o un campo de texto con algo escrito, se recargaban igual y se
+  // perdía lo que no se había guardado. Ahora se revisa TODO lo que pueda perderse.
+  function _hayCapturaEnCurso(){
+    if(_modalOcupado())return true;
+    // Foco en un campo con contenido: algo se está escribiendo ahora mismo.
+    const ae=document.activeElement;
+    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')&&String(ae.value||'').trim())return true;
+    // Formulario de REMISIÓN con datos que todavía no se registraron.
+    try{
+      if(typeof _modoEdicion!=='undefined'&&_modoEdicion)return true; // editando una existente
+      const nombreRem=(document.getElementById('c_nombre')?.value||'').trim();
+      const itemsRem=(typeof items!=='undefined'?items:[]).some(it=>it&&(it.clave||it.desc||(+it.qty>0)||(+it.precio>0)));
+      if(typeof remActualId!=='undefined'&&!remActualId&&(nombreRem||itemsRem))return true;
+    }catch(_){}
+    // Formulario de COTIZACIÓN con datos que todavía no se generaron.
+    try{
+      if(typeof _enModoCotizacion==='function'&&_enModoCotizacion()){
+        const nombreCot=(document.getElementById('cot_c_nombre')?.value||'').trim();
+        const itemsCot=(typeof _cotItems!=='undefined'?_cotItems:[]).some(it=>it&&(it.clave||it.desc||(+it.qty>0)||(+it.precio>0)));
+        if(nombreCot||itemsCot)return true;
+      }
+    }catch(_){}
+    return false;
+  }
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
     if(_swRecargado)return;
     // Primera reclamación (instalación inicial): NO recargar — evita el parpadeo de primera visita.
     if(!_huboControlador){ _huboControlador=true; return; }
     localStorage.setItem('rem_ultima_actualizacion', String(Date.now()));
-    // Si hay un cobro/cancelación en curso, diferir la recarga hasta cerrar el modal.
-    if(_ocupado()){
+    // Si hay cualquier captura en curso, diferir la recarga hasta que se libere.
+    if(_hayCapturaEnCurso()){
       try{toast('Nueva versión lista — se aplicará al terminar','ok',4000);}catch(_){}
       const iv=setInterval(()=>{
-        if(!_ocupado()){clearInterval(iv);_swRecargado=true;location.reload();}
+        if(!_hayCapturaEnCurso()){clearInterval(iv);_swRecargado=true;location.reload();}
       },1500);
       return;
     }

@@ -1,0 +1,2135 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUMETEC – Gastos / Inventario</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#023561">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gastos">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#F2F4F7;color:#152A3A;padding-bottom:80px}
+
+/* Liquid Glass (nivel suave) -- mismos tokens y reglas que el ERP-SQL
+   (1.- SUMETEC-PY-SQL/static/css/liquid-glass-theme.css): la barra superior
+   es siempre el cristal mas intenso, tarjetas/toast/botones usan una version
+   mas sobria, e inputs/selects se quedan solidos porque son superficie de
+   captura de datos, no decorativa. */
+:root{
+  --sm-glass-superficie-fondo: rgb(255 255 255 / .82);
+  --sm-glass-tarjeta-fondo: rgb(255 255 255 / .76);
+  --sm-glass-superficie-borde: rgb(13 59 102 / .34);
+  --sm-glass-superficie-sombra: rgb(8 43 70 / .16);
+  --sm-glass-superficie-blur: 13px;
+  --sm-glass-superficie-luz: rgb(255 255 255 / .55);
+  --sm-glass-borde-luz: rgb(237 250 255 / .22);
+  --sm-glass-nav-fondo: linear-gradient(180deg, rgb(2 53 97 / .82), rgb(13 59 102 / .78));
+  --sm-glass-nav-borde: rgb(235 248 255 / .44);
+  --sm-glass-nav-blur: 26px;
+  --sm-glass-nav-luz: rgb(255 255 255 / .30);
+  --sm-glass-nav-reflejo: rgb(213 241 255 / .32);
+}
+
+header{
+  position:relative;isolation:isolate;overflow:hidden;
+  background:var(--sm-glass-nav-fondo);color:#fff;padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--sm-glass-nav-borde);
+  -webkit-backdrop-filter:blur(var(--sm-glass-nav-blur)) saturate(150%);
+  backdrop-filter:blur(var(--sm-glass-nav-blur)) saturate(150%);
+  box-shadow:0 10px 26px rgb(2 25 45 / .28), inset 0 1px 0 var(--sm-glass-nav-reflejo);
+}
+header h1{font-size:16px;font-weight:700;position:relative;z-index:2}
+header>*{position:relative;z-index:2}
+
+.card,.toast,.btn{position:relative;isolation:isolate;overflow:hidden}
+
+.card{
+  background:var(--sm-glass-tarjeta-fondo);border-radius:10px;padding:14px;margin:12px;
+  border:1px solid var(--sm-glass-superficie-borde);
+  -webkit-backdrop-filter:blur(var(--sm-glass-superficie-blur)) saturate(130%);
+  backdrop-filter:blur(var(--sm-glass-superficie-blur)) saturate(130%);
+  box-shadow:0 6px 18px var(--sm-glass-superficie-sombra), inset 0 1px 0 rgb(255 255 255 / .5);
+  transition:transform .2s ease, box-shadow .2s ease;
+}
+
+.btn{
+  background:color-mix(in srgb, #1f8a2d 82%, transparent);color:#fff;border:none;border-radius:8px;
+  padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;
+  border:1px solid rgb(255 255 255 / .38);
+  -webkit-backdrop-filter:blur(10px) saturate(140%);
+  backdrop-filter:blur(10px) saturate(140%);
+  box-shadow:0 4px 12px rgb(2 53 97 / .2), inset 0 1px 0 rgb(255 255 255 / .4);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.btn.secondary{background:color-mix(in srgb, #0D3B66 82%, transparent)}
+.btn.danger{background:color-mix(in srgb, #B00020 82%, transparent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn:active{transform:translateY(1px);box-shadow:0 2px 6px rgb(2 53 97 / .22), inset 0 1px 0 rgb(255 255 255 / .3)}
+
+/* Anillo de luz reactivo al cursor/toque -- capa decorativa, sin clic, debajo
+   del contenido. Igual mecanismo que liquid-glass-theme.js del ERP: solo se
+   activa en el elemento bajo el puntero y no se mueve nada mas. */
+header::after,.card::after,.btn::after{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;opacity:0;
+  transition:opacity .16s ease;
+  background:radial-gradient(220px circle at var(--sm-liquid-x,50%) var(--sm-liquid-y,50%), var(--sm-glass-superficie-luz), transparent 68%);
+}
+header::after{background:radial-gradient(260px circle at var(--sm-liquid-x,50%) var(--sm-liquid-y,50%), var(--sm-glass-nav-luz), transparent 70%)}
+header.sm-liquid-activa::after,.card.sm-liquid-activa::after,.btn.sm-liquid-activa::after{opacity:1}
+.card.sm-liquid-activa{transform:translateY(-2px);box-shadow:0 12px 24px var(--sm-glass-superficie-sombra), inset 0 1px 0 rgb(255 255 255 / .55)}
+
+select,input{width:100%;padding:8px;border:1px solid #DCE3EA;border-radius:6px;font-size:14px;margin-top:4px;background:#fff;color:#152A3A}
+.fila-producto{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #F0F0F0}
+.fila-producto .info{flex:1}
+.fila-producto .codigo{font-family:monospace;font-size:12px;color:#666}
+.fila-producto input[type=number]{width:80px;text-align:right}
+#tokenGate{display:none;position:fixed;inset:0;z-index:999;background:rgba(2,53,97,.92);align-items:center;justify-content:center}
+#tokenGate .card{width:280px}
+.toast{
+  position:fixed;bottom:16px;left:16px;right:16px;z-index:1000;display:none;
+  background:rgb(21 42 58 / .82);color:#fff;padding:10px 14px;border-radius:8px;font-size:13px;
+  border:1px solid rgb(255 255 255 / .12);
+  -webkit-backdrop-filter:blur(16px) saturate(140%);
+  backdrop-filter:blur(16px) saturate(140%);
+}
+.toast.show{display:block}
+#badgePendientes{cursor:pointer}
+.ia-tocado{background:#FFF7DE;border-color:#E8C547}
+
+@media (prefers-reduced-motion: reduce){
+  .card,.btn,header::after,.card::after,.btn::after{transition:none!important}
+  .card.sm-liquid-activa{transform:none}
+  .btn:active{transform:none}
+}
+@media (prefers-reduced-transparency: reduce){
+  header,.card,.toast,.btn{background:#023561;-webkit-backdrop-filter:none;backdrop-filter:none}
+  .card{background:#fff}
+  .btn{background:#1f8a2d}
+  .btn.secondary{background:#0D3B66}
+  .btn.danger{background:#B00020}
+  .toast{background:#152A3A}
+  header::after,.card::after,.btn::after{display:none}
+}
+@supports not (backdrop-filter: blur(1px)){
+  header{background:#023561}
+  .card{background:#fff}
+  .btn{background:#1f8a2d}
+  .btn.secondary{background:#0D3B66}
+  .btn.danger{background:#B00020}
+  .toast{background:#152A3A}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="tituloApp">💰 Gastos — SUMETEC</h1>
+  <span id="badgePendientes" onclick="verColaPendiente()" style="font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px"></span>
+  <span id="badgeVersion" onclick="_mostrarVersionInstalada()" style="font-size:11px;background:rgba(255,255,255,.2);padding:2px 8px;border-radius:10px;cursor:pointer" title="Ver actualización de software">ℹ️</span>
+</header>
+
+<div id="app"></div>
+
+<div id="tokenGate">
+  <div class="card">
+    <h2 style="margin-bottom:10px;font-size:16px">🔑 Token de acceso</h2>
+    <p style="font-size:12px;color:#666;margin-bottom:10px">Es el mismo token que usas en Remisiones.</p>
+    <input id="tg_nombre" type="text" placeholder="Tu nombre (para saber quién contó)">
+    <input id="tg_input" type="password" placeholder="Pega tu token aquí…" style="margin-top:8px">
+    <button class="btn" style="width:100%;margin-top:10px" onclick="_tgGuardar()">Continuar</button>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ── Token: compartido por origen con remision.html (localStorage) ──────────
+let API_TOKEN = (localStorage.getItem('api_token') || '').trim();
+
+// Ecosistema centralizado (2026-09): valores de fábrica IDÉNTICOS a los que
+// ya estaban horneados aquí -- si el ERP nunca publica nada, el
+// comportamiento no cambia. Ver _cargarConfiguracionEcosistema_ más abajo.
+let STOCK_HORAS_ROJO_PUBLICADO = 24 * 7;
+let FOTO_TOPE_KB_PUBLICADO = 250;
+// Mejora (2026-09-02, confirmado por Miguel): a partir de este total, pedir
+// confirmación explícita antes de guardar el gasto -- suele ser un cero de
+// más al teclear, no un límite que bloquee gastos grandes reales.
+const UMBRAL_GASTO_ATIPICO = 2000;
+
+// J-1 (Bloque J, 2026-07-22): Gastos pasa a ser la app principal; Inventario
+// queda como segunda pestaña -- misma relación que Cotizaciones dentro de
+// Remisiones (remision.html), solo que aquí el default es el otro lado.
+// Se recuerda el último modo usado (localStorage) para no forzar a elegir
+// cada vez que se abre la app.
+let MODO_ACTUAL = (localStorage.getItem('modo_app') || 'gastos').trim();
+if (MODO_ACTUAL !== 'gastos' && MODO_ACTUAL !== 'inventario') MODO_ACTUAL = 'gastos';
+
+function _tituloDeModo_(modo) {
+  return modo === 'inventario' ? '📋 Inventario — SUMETEC' : '💰 Gastos — SUMETEC';
+}
+function _pintarTitulo_() {
+  const h = document.getElementById('tituloApp');
+  if (h) h.textContent = _tituloDeModo_(MODO_ACTUAL);
+}
+
+// Escapa texto y valores de atributo HTML (mismo comportamiento que
+// esc()/escAttr() en calculos.js -- inline aquí porque inventario.html no
+// carga ese archivo). Necesario: descripciones de tornillería traen `"`
+// literal (medidas en pulgadas, ej. TORNILLO 1/4" x 2") que rompería el
+// atributo value="..." o el HTML si se interpola sin escapar.
+function esc(v) {
+  return v == null ? '' : String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, ms) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.className = 'toast'; }, ms || 3000);
+}
+
+function _tokenGateCheck() {
+  _pintarTitulo_();
+  const mostrar = !API_TOKEN;
+  document.getElementById('tokenGate').style.display = mostrar ? 'flex' : 'none';
+  // Si el nombre ya se capturó desde remision.html (mismo origen), precargarlo.
+  if (mostrar) {
+    const nEl = document.getElementById('tg_nombre');
+    const yaTiene = _leerVendedorCompartido();
+    if (nEl && yaTiene && !nEl.value) nEl.value = yaTiene;
+  }
+}
+// I-5: "vendedor" se guarda en la MISMA clave 'r_empresa' que usa remision.html
+// (mismo origen de GitHub Pages -> mismo localStorage) -- así el nombre
+// capturado en cualquiera de las dos apps sirve para las dos, sin duplicar
+// captura ni inventar una clave nueva.
+function _leerVendedorCompartido() {
+  try { return (JSON.parse(localStorage.getItem('r_empresa') || '{}').vendedor || '').trim(); }
+  catch (_) { return ''; }
+}
+function _guardarVendedorCompartido(nombre) {
+  let obj = {};
+  try { obj = JSON.parse(localStorage.getItem('r_empresa') || '{}') || {}; } catch (_) { obj = {}; }
+  obj.vendedor = nombre;
+  localStorage.setItem('r_empresa', JSON.stringify(obj));
+}
+function _tgGuardar() {
+  const v = (document.getElementById('tg_input').value || '').trim();
+  const nombre = (document.getElementById('tg_nombre').value || '').trim();
+  if (!nombre) { toast('Escribe tu nombre primero'); return; }
+  if (!v) { toast('Escribe el token primero'); return; }
+  _guardarVendedorCompartido(nombre);
+  API_TOKEN = v;
+  localStorage.setItem('api_token', v);
+  _tokenGateCheck();
+  _iniciarAppSegunModo_();
+}
+
+// J-1: punto de entrada único -- Gastos no necesita el catálogo de productos
+// (usa sus propias listas, J-2), así que solo Inventario dispara la carga
+// pesada del catálogo. Cambiar de modo reusa esta misma función.
+function _iniciarAppSegunModo_() {
+  if (MODO_ACTUAL === 'inventario') cargarCatalogo();
+  else renderGastos();
+}
+
+// ── URL del servidor: MISMA que remisiones (remision.html::URL_SERVIDOR).
+//    Solo cambia si creas una implementación NUEVA del Apps Script. ──
+const URL_SERVIDOR = 'https://script.google.com/macros/s/AKfycbxQ3o4Fapo78sEbAAsMoGjyjMrcsL7lMXRwwig0r2ZhRAwi_Ukdi3CHkGrilpcTsgrK/exec';
+
+function getScriptUrl() { return URL_SERVIDOR; }
+
+// ── Cola offline / persistencia local (helpers usados por catálogo, conteo
+// en curso y cola de envío) ─────────────────────────────────────────────────
+function leerSeguro(clave, porDefecto) {
+  try { const v = localStorage.getItem(clave); return v === null ? porDefecto : JSON.parse(v); }
+  catch (_) { return porDefecto; }
+}
+function guardarSeguro(clave, valorObj) {
+  try { localStorage.setItem(clave, JSON.stringify(valorObj)); return true; }
+  catch (_) { return false; }
+}
+function _dedupeCola_(cola, id) { return cola.some(e => e.id === id); }
+
+// ── Catálogo: llega como JSON (no CSV) desde el Apps Script; se cachea en
+// localStorage para poder empezar/seguir un conteo sin señal en bodega. ──────
+let CATALOGO = [];     // [{codigo, descripcion, categoria}]
+let CATEGORIAS = [];   // nombres únicos, ordenados
+let CATALOGO_FRESCO = true; // false si se usó el respaldo de localStorage
+
+function _guardarCatalogoCache_(catalogo, categorias) {
+  guardarSeguro('catalogo_cache', { ts: Date.now(), catalogo, categorias });
+}
+
+// ── Stock teórico del ERP (menú #22, 2026-07-15) ────────────────────────────
+// El ERP publica CODIGO,DESCRIPCION,STOCK_TEORICO cada vez que una compra,
+// venta o ajuste mueve el stock (services/publicar.py::publicar_stock_teorico).
+// Se usa para avisar "difiere de lo que el ERP espera" MIENTRAS se cuenta --
+// nunca cambia lo que el usuario escribe; es un dato de referencia, no una
+// validación que bloquee. Desde 2026-09-10 (propuesta 4) SÍ viaja con el
+// conteo, solo como contexto: ver _armarPayloadConteo_.
+let STOCK_TEORICO = new Map(); // codigo(minúsculas) -> {stock, desc}
+
+// Función pura (testeable sin red/DOM): array de filas del CSV → Map.
+function _construirStockTeoricoMap(filas) {
+  const m = new Map();
+  if (!Array.isArray(filas)) return m;
+  filas.forEach(f => {
+    const cod = String(f.CODIGO || '').trim();
+    if (!cod) return;
+    const stock = Number(f.STOCK_TEORICO);
+    if (isNaN(stock)) return;
+    // Mejora 3 (2026-07-29): de qué se compone el teórico -- ENTRADAS
+    // (compras)/SALIDAS (ventas)/AJUSTES (carga inicial + conteos +
+    // correcciones manuales, el ERP no las distingue entre sí -- ver
+    // routers/inventario.py::_calcular_stock). Columnas nuevas, aditivas: si
+    // el celular tiene un caché viejo de antes de esto, caen a 0 sin tronar.
+    const entradas = Number(f.ENTRADAS); const salidas = Number(f.SALIDAS); const ajuste = Number(f.AJUSTES);
+    m.set(cod.toLowerCase(), {
+      stock, desc: f.DESCRIPCION || '',
+      entradas: isNaN(entradas) ? 0 : entradas,
+      salidas: isNaN(salidas) ? 0 : salidas,
+      ajuste: isNaN(ajuste) ? 0 : ajuste,
+    });
+  });
+  return m;
+}
+
+// Mejora 3: texto del desglose -- "45 = 60 comprados − 20 vendidos + 5 de
+// ajustes". Función pura (testeable sin DOM) para no tener que regresar a la
+// computadora a abrir el kardex cuando aparece una diferencia grande.
+function _textoDesgloseStock_(stock, entradas, salidas, ajuste) {
+  const partes = [`${entradas} comprados`];
+  if (salidas) partes.push(`− ${salidas} vendidos`);
+  if (ajuste) partes.push(`${ajuste >= 0 ? '+' : '−'} ${Math.abs(ajuste)} de ajustes`);
+  return `${stock} = ` + partes.join(' ');
+}
+
+function _mostrarDesgloseStock_(codigo) {
+  const e = STOCK_TEORICO.get(String(codigo || '').toLowerCase());
+  if (!e) return;
+  // toast() usa textContent (no innerHTML) -- no hace falta esc() aquí, y
+  // usarlo mostraría entidades HTML literales ("&amp;") en vez del texto real.
+  toast(codigo + ': ' + _textoDesgloseStock_(e.stock, e.entradas, e.salidas, e.ajuste), 6000);
+}
+
+// J-4: resumen al cerrar el conteo -- "¿qué tan mal estamos?", en pesos y en
+// ERI. MISMA fórmula que services/ajustes.py::resumen_eri del ERP (variación
+// = faltantes + sobrantes valuados sin IVA, sobre el valor teórico total) --
+// para que el número que ve Miguel en el celular no contradiga al que verá
+// después en el ERP cuando se importe este mismo conteo.
+function _resumenConteo_(items, stockTeoricoMap) {
+  let contados = 0, sinTocar = 0, cuadran = 0, difieren = 0;
+  let dineroFalt = 0, dineroSobr = 0, totalTeorico = 0;
+  (items || []).forEach(it => {
+    if (it.cantidad === null) { sinTocar++; return; }
+    contados++;
+    const e = stockTeoricoMap.get(String(it.codigo || '').toLowerCase());
+    if (!e) return; // sin referencia teórica, no se puede comparar
+    const costo = it.costo || 0;
+    const diferencia = it.cantidad - e.stock;
+    const valorDif = diferencia * costo;
+    if (diferencia === 0) cuadran++;
+    else if (diferencia < 0) { difieren++; dineroFalt += Math.abs(valorDif); }
+    else { difieren++; dineroSobr += valorDif; }
+    totalTeorico += e.stock * costo;
+  });
+  const variacion = dineroFalt + dineroSobr;
+  let eri = totalTeorico > 0 ? (1 - variacion / totalTeorico) * 100 : 100;
+  if (eri < 0) eri = 0;
+  let nivel = 'CRÍTICO';
+  if (eri >= 99) nivel = 'EXCELENTE';
+  else if (eri >= 95) nivel = 'ACEPTABLE';
+  else if (eri >= 85) nivel = 'REGULAR';
+  return { contados, sinTocar, cuadran, difieren, dineroFalt, dineroSobr, eri, nivel };
+}
+
+// "ts" (2026-07-29, Mejora 2): SIEMPRE el timestamp que el ERP publicó (ver
+// apps_script.js, tipo "stock_teorico" -- lee "productosActualizadoTs" de
+// Propiedades del Script), NUNCA "cuándo lo bajó este celular" -- son cosas
+// distintas: si el ERP lleva días sin sincronizar pero el celular sigue
+// teniendo señal, re-descargar el mismo archivo viejo no lo hace fresco.
+function _guardarStockTeoricoCache_(filas, ts) {
+  guardarSeguro('stock_teorico_cache', { ts: ts || '', filas });
+}
+
+// Best-effort, nunca bloquea el arranque de la app: si falla o no hay señal,
+// STOCK_TEORICO se queda vacío (o con el último cacheado) y simplemente no
+// aparecen avisos de diferencia -- el conteo funciona igual sin esto.
+async function _cargarStockTeorico_() {
+  if (!navigator.onLine || !API_TOKEN) {
+    const cache = leerSeguro('stock_teorico_cache', null);
+    if (cache && cache.filas) STOCK_TEORICO = _construirStockTeoricoMap(cache.filas);
+    return;
+  }
+  try {
+    const url = getScriptUrl();
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo: 'stock_teorico', token: API_TOKEN })
+    });
+    const d = await res.json();
+    if (!d || !Array.isArray(d.filas)) throw new Error('respuesta inválida');
+    STOCK_TEORICO = _construirStockTeoricoMap(d.filas);
+    _guardarStockTeoricoCache_(d.filas, d.ts || '');
+  } catch (_) {
+    const cache = leerSeguro('stock_teorico_cache', null);
+    if (cache && cache.filas) STOCK_TEORICO = _construirStockTeoricoMap(cache.filas);
+  }
+}
+
+// Botón "Actualizar ahora" (Mejora 2): jala el teórico fresco mientras
+// todavía hay señal, ANTES de entrar a la bodega -- de nada sirve enterarse
+// de que los números eran viejos hasta después de recorrer el almacén.
+async function _actualizarStockTeoricoAhora_() {
+  if (!navigator.onLine) { toast('Sin conexión -- no se puede actualizar ahora.'); return; }
+  await _cargarStockTeorico_();
+  if (typeof renderSelectorCategoria === 'function' &&
+      document.getElementById('app') && document.getElementById('chkTodo')) {
+    renderSelectorCategoria();
+  }
+  toast('Stock teórico actualizado.');
+}
+
+function _haceCuanto_(ts) {
+  const min = Math.round((Date.now() - ts) / 60000);
+  if (min < 1) return 'un momento';
+  if (min < 60) return min + ' min';
+  const h = Math.round(min / 60);
+  if (h < 24) return h + ' h';
+  return Math.round(h / 24) + ' días';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── BLOQUE GASTOS (J-1/J-2/J-3, 2026-07-22) ─────────────────────────────────
+// Espejo del cálculo de servicios/gastos.py::calcular_montos_gasto -- el
+// servidor de Apps Script y el ERP NUNCA recalculan, solo guardan lo que
+// sale de aquí (misma regla "espejo" que ya rige remisiones/pagos).
+// ═══════════════════════════════════════════════════════════════════════════
+
+function _calcularMontosGasto_(modo, montoSinIva, ivaPct, totalConIva, ivaPesos) {
+  // '' -> null (no 0): un <select>/<input> vacío no debe colarse como "0%"
+  // válido -- Number('') es 0, no NaN, así que hay que cortarlo aparte.
+  const num = v => { if (v === '' || v == null) return null; const n = Number(v); return isNaN(n) ? null : n; };
+  modo = (modo || 'A').toUpperCase();
+
+  if (modo === 'B') {
+    const total = num(totalConIva), pct = num(ivaPct);
+    const errores = [];
+    if (total === null || total < 0) errores.push('El TOTAL debe ser un número (ej. 500.00) y no negativo.');
+    if (pct === null || [0, 0.08, 0.16].indexOf(pct) === -1) errores.push('La tasa de IVA debe ser 0%, 8% o 16%.');
+    if (errores.length) return { errores };
+    const monto = pct ? total / (1 + pct) : total;
+    return { monto, pct, ivaMonto: total - monto, total, errores: [] };
+  }
+
+  if (modo === 'C') {
+    const total = num(totalConIva), ivaMonto = num(ivaPesos);
+    const errores = [];
+    if (total === null || total < 0) errores.push('El TOTAL debe ser un número (ej. 500.00) y no negativo.');
+    if (ivaMonto === null || ivaMonto < 0) errores.push('El IVA (en pesos, el que dice tu ticket/CFDI) debe ser un número y no negativo.');
+    if (!errores.length && ivaMonto >= total) errores.push('El IVA no puede ser mayor o igual al TOTAL.');
+    if (errores.length) return { errores };
+    const monto = total - ivaMonto;
+    const pct = monto > 0 ? ivaMonto / monto : 0;
+    return { monto, pct, ivaMonto, total, errores: [] };
+  }
+
+  // Modo A (default): base + tasa, el sistema suma el IVA.
+  const monto = num(montoSinIva), pct = num(ivaPct);
+  const errores = [];
+  if (monto === null || monto < 0) errores.push('El MONTO debe ser un número (ej. 150.00) y no negativo.');
+  if (pct === null || pct < 0) errores.push('El IVA debe ser un número (0, 0.08 o 0.16).');
+  if (errores.length) return { errores };
+  return { monto, pct, ivaMonto: monto * pct, total: monto + monto * pct, errores: [] };
+}
+
+// ── Listas de tipos de gasto / formas de pago (publicadas por el ERP,
+// services/publicar.py::csv_listas_gasto) -- se cachean igual que el
+// catálogo/stock teórico: sin señal se usa la última copia guardada. ────────
+let TIPOS_GASTO = [];
+let FORMAS_PAGO = [];
+
+function _guardarListasGastoCache_(filas) {
+  guardarSeguro('listas_gasto_cache', { ts: Date.now(), filas });
+}
+function _repartirListasGasto_(filas) {
+  TIPOS_GASTO = (filas || []).filter(f => String(f.CLASE || '').toUpperCase() === 'TIPO').map(f => f.NOMBRE);
+  FORMAS_PAGO = (filas || []).filter(f => String(f.CLASE || '').toUpperCase() === 'FORMA').map(f => f.NOMBRE);
+  _pintarOpcionesGasto_();
+}
+
+// _cargarListasGasto_() es fire-and-forget (no bloquea el render del
+// formulario) -- si la respuesta llega DESPUÉS de que renderGastos() ya pintó
+// los <select> con TIPOS_GASTO/FORMAS_PAGO todavía vacíos, hay que repintarlos
+// aquí o el usuario se queda viendo solo "— elige —" sin poder capturar el
+// gasto. No-op si el usuario ya se salió de Gastos (los <select> no existen).
+function _pintarOpcionesGasto_() {
+  const selTipo = document.getElementById('gas_tipo');
+  if (selTipo) {
+    const actual = selTipo.value;
+    selTipo.innerHTML = '<option value="">— elige —</option>' + TIPOS_GASTO.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    selTipo.value = actual;
+  }
+  const selForma = document.getElementById('gas_forma');
+  if (selForma) {
+    const actual = selForma.value;
+    selForma.innerHTML = '<option value="">— elige —</option>' + FORMAS_PAGO.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+    selForma.value = actual;
+  }
+}
+// Mejora (2026-09-02): mismo aviso de frescura que ya existe para el catálogo
+// en Inventario (avisoCache/CATALOGO_FRESCO) -- Gastos no tenía ninguno, y
+// las listas de tipo/forma también pueden quedarse viejas sin señal.
+function _htmlAntiguedadListasGasto_() {
+  const cache = leerSeguro('listas_gasto_cache', null);
+  if (!cache || !cache.ts) return '';
+  return `<div class="card" style="margin-bottom:0;font-size:12px;color:#666">Listas actualizadas hace ${_haceCuanto_(cache.ts)}</div>`;
+}
+async function _cargarListasGasto_() {
+  if (!navigator.onLine || !API_TOKEN) {
+    const cache = leerSeguro('listas_gasto_cache', null);
+    if (cache && cache.filas) _repartirListasGasto_(cache.filas);
+    return;
+  }
+  try {
+    const url = getScriptUrl();
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo: 'listas_gasto', token: API_TOKEN }),
+    });
+    const filas = await res.json();
+    if (!Array.isArray(filas)) throw new Error('respuesta inválida');
+    _repartirListasGasto_(filas);
+    _guardarListasGastoCache_(filas);
+  } catch (_) {
+    const cache = leerSeguro('listas_gasto_cache', null);
+    if (cache && cache.filas) _repartirListasGasto_(cache.filas);
+  }
+}
+
+// Ecosistema centralizado (2026-09): solo la sección GASTOS (política OCR,
+// umbral de frescura del stock, tope de foto) -- se llama UNA vez al abrir
+// la app, no en cada renderGastos() como listas_gasto (esto cambia poco).
+function _aplicarConfigGastosPublicada_(gastos) {
+  if (!gastos) return;
+  if (typeof gastos.stock_horas_rojo === 'number' && gastos.stock_horas_rojo > 0) {
+    STOCK_HORAS_ROJO_PUBLICADO = gastos.stock_horas_rojo;
+  }
+  if (typeof gastos.foto_tope_kb === 'number' && gastos.foto_tope_kb > 0) {
+    FOTO_TOPE_KB_PUBLICADO = gastos.foto_tope_kb;
+  }
+}
+async function _cargarConfiguracionEcosistema_() {
+  if (!navigator.onLine || !API_TOKEN) {
+    const cache = leerSeguro('config_ecosistema_cache', null);
+    if (cache && cache.datos) _aplicarConfigGastosPublicada_(cache.datos.GASTOS);
+    return;
+  }
+  try {
+    const url = getScriptUrl();
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo: 'configuracion', token: API_TOKEN }),
+    });
+    const r = await res.json();
+    if (!r || !r.ok || !r.datos) throw new Error('respuesta inválida');
+    guardarSeguro('config_ecosistema_cache', { ts: r.ts || '', datos: r.datos });
+    _aplicarConfigGastosPublicada_(r.datos.GASTOS);
+  } catch (_) {
+    const cache = leerSeguro('config_ecosistema_cache', null);
+    if (cache && cache.datos) _aplicarConfigGastosPublicada_(cache.datos.GASTOS);
+  }
+}
+
+// ── Foto del ticket: opcional, se manda como base64 (mismo criterio que el
+// PDF de una remisión) -- si el archivo es grande el POST tarda más, pero
+// nunca bloquea el guardado local (se encola igual, con o sin foto lista). ──
+function _leerArchivoComoB64_(file) {
+  return new Promise((resolve) => {
+    if (!file) { resolve(''); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
+// ── Compresión de la foto del ticket (2026-08-27, plan OCR Fase 1) ───────────
+// Una foto de celular sin comprimir pesa 4-8 MB; en base64 crece ~37% más, y
+// se guarda TAL CUAL dentro de cola_gastos (localStorage). El origen de esta
+// app es el MISMO que remision.html (mismo repo GitHub Pages) -- localStorage
+// es por origen, no por pestaña -- así que 1-2 fotos sin comprimir pueden
+// llenar la cuota compartida (~5MB) y tumbar también datos del Cotizador
+// (cobros, folios, borradores). Comprimir a ~200KB es una reducción de ~40x.
+// Un ticket es texto sobre papel: a 1600px de lado se lee perfecto, para el
+// ojo y para el OCR.
+function _escalarLado_(ancho, alto, maxLado) {
+  const mayor = Math.max(ancho, alto);
+  if (mayor <= maxLado) return { w: ancho, h: alto }; // nunca agrandar
+  const factor = maxLado / mayor;
+  return { w: Math.round(ancho * factor), h: Math.round(alto * factor) };
+}
+
+function _comprimirImagen_(file, maxLado, calidad) {
+  maxLado = maxLado || 1600;
+  calidad = calidad || 0.72;
+  return new Promise((resolve) => {
+    if (!file) { resolve(''); return; }
+    // Cualquier fallo en el camino de compresión regresa al comportamiento de
+    // hoy (foto sin comprimir) -- el gasto NUNCA se pierde por la foto, mismo
+    // criterio que ya rige _leerArchivoComoB64_ arriba.
+    const fallback = () => _leerArchivoComoB64_(file).then(resolve);
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const { w, h } = _escalarLado_(img.naturalWidth || img.width, img.naturalHeight || img.height, maxLado);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          URL.revokeObjectURL(url);
+          _exportarConCalidadDecreciente_(canvas, calidad).then(resolve).catch(fallback);
+        } catch (e) { URL.revokeObjectURL(url); fallback(); }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); fallback(); };
+      img.src = url;
+    } catch (e) { fallback(); }
+  });
+}
+
+// Reintenta con calidad más baja si el JPEG sigue pesando arriba de 250KB.
+// Si ni al piso de calidad baja lo suficiente, usa lo que haya -- nunca
+// bloquea el guardado por perseguir un tamaño perfecto.
+function _exportarConCalidadDecreciente_(canvas, calidadInicial) {
+  const TOPE_BYTES = FOTO_TOPE_KB_PUBLICADO * 1024;
+  const PISO_CALIDAD = 0.45;
+  return new Promise((resolve, reject) => {
+    const intentar = (q) => {
+      canvas.toBlob((blob) => {
+        if (!blob) { reject(new Error('toBlob vacío')); return; }
+        if (blob.size > TOPE_BYTES && q > PISO_CALIDAD) {
+          intentar(Math.max(PISO_CALIDAD, +(q - 0.1).toFixed(2)));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+        reader.onerror = () => reject(new Error('FileReader falló'));
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', q);
+    };
+    intentar(calidadInicial);
+  });
+}
+
+function _cambiarModoGasto_(modo) {
+  ['A', 'B', 'C'].forEach(m => {
+    const el = document.getElementById('gasCampos' + m);
+    if (el) el.style.display = (m === modo) ? '' : 'none';
+  });
+  _actualizarPreviewGasto_();
+}
+
+function _actualizarPreviewGasto_() {
+  const modo = (document.querySelector('input[name="gasModo"]:checked') || {}).value || 'A';
+  const r = _calcularMontosGasto_(modo,
+    document.getElementById('gas_montoA')?.value,
+    modo === 'A' ? document.getElementById('gas_ivaA')?.value : document.getElementById('gas_ivaB')?.value,
+    // Bug real corregido (2026-08-27, plan OCR Fase 3): modo B y modo C tenían
+    // el MISMO id "gas_totalBC" en dos <input> distintos -- getElementById
+    // siempre devuelve el primero en el DOM (el de B), así que en modo C lo
+    // que el usuario escribía en el campo visible nunca se leía. Modo C ahora
+    // tiene su propio id "gas_totalC".
+    (modo === 'C' ? document.getElementById('gas_totalC') : document.getElementById('gas_totalBC'))?.value,
+    document.getElementById('gas_ivaC')?.value);
+  const prev = document.getElementById('gasPreview');
+  if (!prev) return;
+  if (r.errores && r.errores.length) {
+    prev.innerHTML = '<span style="color:#B00020">' + esc(r.errores[0]) + '</span>';
+  } else {
+    prev.innerHTML = `Base: $${r.monto.toFixed(2)} · IVA: $${r.ivaMonto.toFixed(2)} · <strong>Total: $${r.total.toFixed(2)}</strong>`;
+  }
+}
+
+function renderGastos() {
+  // Cada render fresco del formulario parte de cero: si no se resetearan
+  // aquí, un ticket leído por OCR y luego abandonado (navegar a Inventario y
+  // volver, sin guardar) podría "heredarse" en silencio al siguiente gasto
+  // que se capture sin foto -- el input de archivo se recrea vacío, pero
+  // estas dos variables de módulo sobrevivían al re-render.
+  _gastoTocadoPorOcr = false;
+  _gastoFotoComprimidaB64 = '';
+  _cargarListasGasto_(); // best-effort, no bloquea el render del formulario
+  const opcionesTipo = TIPOS_GASTO.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  const opcionesForma = FORMAS_PAGO.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+  const recientes = leerSeguro('gastos_recientes', []);
+  const filasRecientes = recientes.length ? recientes.slice(0, 5).map(g => `
+    <div class="fila-producto">
+      <div class="info">
+        <div>${esc(g.concepto)}</div>
+        <div class="codigo">${esc(g.tipoGasto || '')} · ${esc(g.fecha)}</div>
+      </div>
+      <strong>$${(+g.total || 0).toFixed(2)}</strong>
+    </div>`).join('') : '<p style="font-size:13px;color:#666;padding:4px 0">Sin gastos capturados todavía en este celular.</p>';
+
+  document.getElementById('app').innerHTML = `
+    <button class="btn secondary" style="width:100%;margin:0 12px 12px;max-width:calc(100% - 24px)" onclick="_irAInventario_()">📋 Ir a Inventario</button>
+    ${_htmlAntiguedadListasGasto_()}
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">Fecha</label>
+      <input type="date" id="gas_fecha" value="${_fechaLocal_()}">
+      <label style="font-size:13px;font-weight:600;margin-top:8px;display:block">Concepto</label>
+      <input type="text" id="gas_concepto" placeholder="Ej. Gasolina de la camioneta">
+      <label style="font-size:13px;font-weight:600;margin-top:8px;display:block">Tipo de gasto</label>
+      <select id="gas_tipo"><option value="">— elige —</option>${opcionesTipo}</select>
+      <label style="font-size:13px;font-weight:600;margin-top:8px;display:block">Forma de pago</label>
+      <select id="gas_forma"><option value="">— elige —</option>${opcionesForma}</select>
+
+      <label style="font-size:13px;font-weight:600;margin-top:12px;display:block">¿Cómo lo vas a capturar?</label>
+      <div style="display:flex;gap:12px;padding:6px 0;font-size:12.5px">
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="radio" name="gasModo" value="A" checked onchange="_cambiarModoGasto_('A')"> Base + IVA
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="radio" name="gasModo" value="B" onchange="_cambiarModoGasto_('B')"> Total con IVA
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+          <input type="radio" name="gasModo" value="C" onchange="_cambiarModoGasto_('C')"> Total + IVA exacto
+        </label>
+      </div>
+
+      <div id="gasCamposA">
+        <label style="font-size:12px;color:#666">Monto sin IVA</label>
+        <input type="number" step="0.01" min="0" id="gas_montoA" inputmode="decimal" oninput="_actualizarPreviewGasto_()">
+        <label style="font-size:12px;color:#666;margin-top:6px;display:block">IVA</label>
+        <select id="gas_ivaA" onchange="_actualizarPreviewGasto_()">
+          <option value="" selected>— elige —</option><option value="0.16">16%</option><option value="0.08">8%</option><option value="0">0% (sin IVA)</option>
+        </select>
+      </div>
+      <div id="gasCamposB" style="display:none">
+        <label style="font-size:12px;color:#666">Total (ya con IVA incluido)</label>
+        <input type="number" step="0.01" min="0" id="gas_totalBC" inputmode="decimal" oninput="_actualizarPreviewGasto_()">
+        <label style="font-size:12px;color:#666;margin-top:6px;display:block">Tasa de IVA</label>
+        <select id="gas_ivaB" onchange="_actualizarPreviewGasto_()">
+          <option value="" selected>— elige —</option><option value="0.16">16%</option><option value="0.08">8%</option><option value="0">0% (sin IVA)</option>
+        </select>
+      </div>
+      <div id="gasCamposC" style="display:none">
+        <label style="font-size:12px;color:#666">Total (el que dice el ticket)</label>
+        <input type="number" step="0.01" min="0" id="gas_totalC" inputmode="decimal" oninput="_actualizarPreviewGasto_()">
+        <label style="font-size:12px;color:#666;margin-top:6px;display:block">IVA en pesos (el que dice el ticket/CFDI — gasolina, IEPS)</label>
+        <input type="number" step="0.01" min="0" id="gas_ivaC" inputmode="decimal" oninput="_actualizarPreviewGasto_()">
+      </div>
+
+      <div id="gasPreview" style="margin-top:10px;font-size:13px;padding:8px;background:#F2F4F7;border-radius:6px"></div>
+
+      <label style="font-size:12px;color:#666;margin-top:10px;display:block">📷 Foto del ticket (opcional)</label>
+      <input type="file" id="gas_foto" accept="image/*" capture="environment" onchange="_onFotoGastoElegida_()">
+      <img id="gasFotoPreview" style="display:none;max-height:160px;border-radius:6px;margin-top:8px;object-fit:contain">
+      <button id="gasBtnOcr" class="btn secondary" type="button" style="width:100%;margin-top:8px;display:none" onclick="_leerTicketConIA_()">🔍 Leer ticket</button>
+      <div id="gasOcrEstado" style="font-size:12px;color:#666;margin-top:4px"></div>
+
+      <label style="font-size:12px;color:#666;margin-top:10px;display:block">Proveedor (opcional)</label>
+      <input type="text" id="gas_proveedor" placeholder="Ej. Tornimaster">
+
+      <label style="font-size:12px;color:#666;margin-top:10px;display:block">🧾 UUID del CFDI (opcional, si ya tienes la factura)</label>
+      <input type="text" id="gas_uuid_cfdi" placeholder="folio fiscal del XML">
+
+      <button class="btn" style="width:100%;margin-top:12px" onclick="_guardarGasto_()">Guardar gasto</button>
+    </div>
+    <div class="card">
+      <strong style="font-size:13px">Últimos gastos capturados aquí</strong>
+      ${filasRecientes}
+      <button class="btn secondary" style="width:100%;margin-top:10px" onclick="verColaPendiente()">📋 Ver cola pendiente de envío</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px" onclick="exportarGastosCSV()">⬇️ Exportar gastos (.csv)</button>
+    </div>`;
+  _cambiarModoGasto_('A');
+}
+
+// ── Estatus de Evidencia (plan OCR Fase 2, 2026-08-27) ────────────────────────
+// Se calcula en el celular y SIEMPRE viaja en el payload (nunca en blanco) --
+// así la columna "Estatus de Evidencia" se autocrea en la hoja desde el
+// PRIMER gasto capturado tras el despliegue (ver services/puente.py::CAMPOS,
+// que sí la exige en el contrato). CFDI pesa más que la foto -- si ya hay
+// factura, la foto del ticket es evidencia extra, no la principal.
+function _estatusEvidenciaGasto_(tieneFoto, uuidCfdi, tocadoPorOcr) {
+  if (uuidCfdi) return 'CFDI';
+  if (tieneFoto && tocadoPorOcr) return 'FOTO+OCR';
+  if (tieneFoto) return 'FOTO';
+  return 'MANUAL';
+}
+
+// ── OCR de tickets (plan OCR Fase 3, 2026-08-27) ──────────────────────────────
+// Botón explícito, NUNCA automático (§3.3 del plan) -- la llamada al Apps
+// Script (tipo:'ocr_ticket') solo ocurre cuando el usuario presiona "Leer
+// ticket", una sola vez, ANTES de encolar. Si viviera dentro del guardado,
+// cada reintento offline volvería a pagar la lectura de la imagen.
+let _gastoTocadoPorOcr = false;
+let _gastoFotoComprimidaB64 = ''; // cache: evita comprimir 2 veces (preview + OCR)
+
+// "DD/MM/YYYY" -> "YYYY-MM-DD" (formato de <input type=date>). null si no es
+// una fecha válida o no viene en ese formato.
+function _parsearFechaOcr_(str) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(str || '').trim());
+  if (!m) return null;
+  const dd = +m[1], mm = +m[2], yyyy = +m[3];
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  const p = n => String(n).padStart(2, '0');
+  return `${yyyy}-${p(mm)}-${p(dd)}`;
+}
+
+// Traduce la respuesta del OCR a QUÉ hacer con el formulario -- función pura
+// (sin tocar el DOM) para poder probarla. Nunca lanza; ante cualquier duda,
+// { aplicado:false } y el formulario se queda como estaba (captura manual).
+function _aplicarOcrAGasto_(resp) {
+  const NADA = { aplicado: false };
+  if (!resp || resp.ok !== true || !resp.campos) return NADA;
+  if (resp.confianza == null || resp.confianza < 50) return NADA;
+  const c = resp.campos;
+  const total = Number(c.total);
+  if (!(total > 0)) return NADA; // total ausente o 0 -> no hay nada que aplicar
+  const out = { aplicado: true, proveedor: String(c.proveedor || '').trim(), fecha: null, total };
+  const fechaOk = _parsearFechaOcr_(c.fecha);
+  // Solo se usa si es válida y no es futura (comparado contra la fecha de hoy
+  // del propio celular) -- una fecha del año que viene se ignora, se queda
+  // la de hoy que ya trae el formulario.
+  if (fechaOk && fechaOk <= _fechaLocal_()) out.fecha = fechaOk;
+  const iva = Number(c.iva);
+  if (iva > 0) {
+    // Total + IVA exacto del papel -> modo C, sin recalcular nada (regla del
+    // espejo: nunca se vuelve a multiplicar un IVA que ya viene en el ticket).
+    out.modo = 'C';
+    out.ivaMonto = iva;
+  } else {
+    // Solo vino el total -> modo B con la tasa default de la app (16%).
+    out.modo = 'B';
+    out.ivaPct = '0.16';
+  }
+  return out;
+}
+
+function _onFotoGastoElegida_() {
+  _gastoTocadoPorOcr = false;
+  _gastoFotoComprimidaB64 = '';
+  const fotoInput = document.getElementById('gas_foto');
+  const file = fotoInput && fotoInput.files ? fotoInput.files[0] : null;
+  const preview = document.getElementById('gasFotoPreview');
+  const btnOcr = document.getElementById('gasBtnOcr');
+  const estado = document.getElementById('gasOcrEstado');
+  if (estado) estado.textContent = '';
+  if (!file) {
+    if (preview) { preview.style.display = 'none'; preview.src = ''; }
+    if (btnOcr) btnOcr.style.display = 'none';
+    return;
+  }
+  if (preview) {
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+  }
+  if (btnOcr) {
+    btnOcr.style.display = 'block';
+    const online = navigator.onLine;
+    btnOcr.disabled = !online;
+    btnOcr.textContent = online ? '🔍 Leer ticket' : '🔍 Leer ticket (sin señal)';
+  }
+}
+
+// Marca un campo como "tocado por la IA" (fondo suave) -- la marca desaparece
+// sola en cuanto el usuario edita ESE campo (Paso 3.4 del plan: "Todos los
+// campos quedan editables... la leyenda desaparece si el usuario lo edita").
+function _marcarTocadoPorIA_(el) {
+  if (!el) return;
+  el.classList.add('ia-tocado');
+  const quitar = () => el.classList.remove('ia-tocado');
+  el.addEventListener('input', quitar, { once: true });
+  el.addEventListener('change', quitar, { once: true });
+}
+
+async function _leerTicketConIA_() {
+  const btnOcr = document.getElementById('gasBtnOcr');
+  const estado = document.getElementById('gasOcrEstado');
+  const fotoInput = document.getElementById('gas_foto');
+  const file = fotoInput && fotoInput.files ? fotoInput.files[0] : null;
+  if (!file || !navigator.onLine) return;
+  const url = getScriptUrl();
+  if (!url || !API_TOKEN) return;
+  if (btnOcr) { btnOcr.disabled = true; btnOcr.textContent = 'Leyendo…'; }
+  if (estado) estado.textContent = '';
+  try {
+    // Comprime UNA vez y la reusa para el guardado -- así el ticket no se
+    // comprime dos veces ni se lee dos veces por accidente.
+    if (!_gastoFotoComprimidaB64) _gastoFotoComprimidaB64 = await _comprimirImagen_(file);
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo: 'ocr_ticket', token: API_TOKEN, foto: _gastoFotoComprimidaB64 }),
+    });
+    const resp = await res.json();
+    const r = _aplicarOcrAGasto_(resp);
+    if (!r.aplicado) {
+      _gastoTocadoPorOcr = false;
+      toast('No se pudo leer bien el ticket — captúralo a mano.', 4000);
+      if (estado) estado.textContent = '⚠️ No se pudo leer, captura a mano.';
+      return;
+    }
+    _gastoTocadoPorOcr = true;
+    // Modo + montos (nunca se recalculan, van tal cual los devolvió el OCR).
+    const radioModo = document.querySelector(`input[name="gasModo"][value="${r.modo}"]`);
+    if (radioModo) { radioModo.checked = true; _cambiarModoGasto_(r.modo); }
+    if (r.modo === 'C') {
+      const elTotal = document.getElementById('gas_totalC');
+      const elIva = document.getElementById('gas_ivaC');
+      if (elTotal) { elTotal.value = r.total.toFixed(2); _marcarTocadoPorIA_(elTotal); }
+      if (elIva) { elIva.value = r.ivaMonto.toFixed(2); _marcarTocadoPorIA_(elIva); }
+    } else {
+      const elTotal = document.getElementById('gas_totalBC');
+      const elIvaSel = document.getElementById('gas_ivaB');
+      if (elTotal) { elTotal.value = r.total.toFixed(2); _marcarTocadoPorIA_(elTotal); }
+      if (elIvaSel) { elIvaSel.value = r.ivaPct; _marcarTocadoPorIA_(elIvaSel); }
+    }
+    if (r.proveedor) {
+      const elProv = document.getElementById('gas_proveedor');
+      if (elProv) { elProv.value = r.proveedor; _marcarTocadoPorIA_(elProv); }
+    }
+    if (r.fecha) {
+      const elFecha = document.getElementById('gas_fecha');
+      if (elFecha) { elFecha.value = r.fecha; _marcarTocadoPorIA_(elFecha); }
+    }
+    _actualizarPreviewGasto_();
+    if (estado) estado.textContent = '✅ IA — revísalo antes de guardar.';
+    toast('✅ Ticket leído. Revisa los datos antes de guardar.', 4000);
+  } catch (e) {
+    _gastoTocadoPorOcr = false;
+    toast('No se pudo leer el ticket (sin señal o error). Captúralo a mano.', 4000);
+    if (estado) estado.textContent = '⚠️ Error de lectura, captura a mano.';
+  } finally {
+    if (btnOcr) { btnOcr.disabled = !navigator.onLine; btnOcr.textContent = navigator.onLine ? '🔍 Leer ticket' : '🔍 Leer ticket (sin señal)'; }
+  }
+}
+
+// Un solo gasto a la vez. Entre el toque del botón y el encolado hay un
+// `await` (la compresión de la foto), y sin este candado dos toques durante
+// esa espera corrían la función completa dos veces: cada pasada generaba su
+// propio crypto.randomUUID(), así que la protección anti-duplicado del
+// servidor (que compara IDs) los veía como gastos distintos y registraba dos
+// veces el mismo ticket, con sus dos salidas de caja.
+let _guardandoGasto = false;
+async function _guardarGasto_() {
+  if (_guardandoGasto) return;
+  _guardandoGasto = true;
+  try {
+  const fecha = document.getElementById('gas_fecha').value || _fechaLocal_();
+  const concepto = (document.getElementById('gas_concepto').value || '').trim();
+  const tipoGasto = document.getElementById('gas_tipo').value || '';
+  const forma = document.getElementById('gas_forma').value || '';
+  const modo = (document.querySelector('input[name="gasModo"]:checked') || {}).value || 'A';
+  if (!concepto) { toast('Escribe el concepto del gasto.'); return; }
+  if (!tipoGasto) { toast('Elige el tipo de gasto.'); return; }
+  if (!forma) { toast('Elige la forma de pago.'); return; }
+
+  const r = _calcularMontosGasto_(modo,
+    document.getElementById('gas_montoA')?.value,
+    modo === 'A' ? document.getElementById('gas_ivaA')?.value : document.getElementById('gas_ivaB')?.value,
+    (modo === 'C' ? document.getElementById('gas_totalC') : document.getElementById('gas_totalBC'))?.value,
+    document.getElementById('gas_ivaC')?.value);
+  if (r.errores && r.errores.length) { toast(r.errores[0]); return; }
+  // Mejora (2026-09-02): un total grande suele ser un cero de más al teclear
+  // -- una sola confirmación explícita, no bloquea gastos grandes reales.
+  if (r.total >= UMBRAL_GASTO_ATIPICO &&
+      !confirm('El total es $' + r.total.toFixed(2) + ', ¿es correcto?')) return;
+
+  const fotoInput = document.getElementById('gas_foto');
+  const fotoFile = fotoInput && fotoInput.files ? fotoInput.files[0] : null;
+  // Reusa la compresión que ya hizo _leerTicketConIA_ si el usuario pasó por
+  // ahí -- nunca comprime la misma foto dos veces.
+  const fotoB64 = _gastoFotoComprimidaB64 || await _comprimirImagen_(fotoFile);
+  const uuidCfdi = (document.getElementById('gas_uuid_cfdi').value || '').trim();
+  const proveedor = (document.getElementById('gas_proveedor')?.value || '').trim();
+  const estatusEvidencia = _estatusEvidenciaGasto_(!!fotoB64, uuidCfdi, _gastoTocadoPorOcr);
+
+  const id = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID()
+             : 'gto_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+  const payload = {
+    tipo: 'gasto', id, fecha, concepto, tipoGasto, modo,
+    montoSinIva: r.monto.toFixed(2), ivaPct: r.pct, ivaMonto: r.ivaMonto.toFixed(2),
+    total: r.total.toFixed(2), formaPago: forma, foto: fotoB64, uuidCfdi,
+    proveedor, estatusEvidencia,
+    device: _leerVendedorCompartido(),
+  };
+  const guardadoEnCola = _encolarGasto_(payload);
+
+  const recientes = leerSeguro('gastos_recientes', []);
+  recientes.unshift({ concepto, tipoGasto, fecha, total: r.total, formaPago: forma });
+  guardarSeguro('gastos_recientes', recientes.slice(0, 20));
+
+  // Bug real corregido (2026-09-02): cuando la cola no cabía en localStorage,
+  // _encolarGasto_ YA avisaba "puede perderse" (8s) -- pero esta línea de
+  // aquí, inmediatamente después, le pintaba encima el toast de éxito y lo
+  // tapaba, así que el aviso real nunca se alcanzaba a leer. Mismo criterio
+  // que ya usa el conteo (CONTEO_ACTUAL._colaFallo, F5): si no se guardó, NO
+  // se dice que se guardó.
+  // 2026-09-09: además de no decir "guardado", cuando la cola NO aceptó el
+  // gasto hay que CONSERVAR la captura. Antes se seguía derecho a limpiar la
+  // foto comprimida y a repintar la pantalla, así que el usuario leía "puede
+  // perderse" y al voltear ya no tenía nada que reintentar: el expediente
+  // (foto incluida) se había borrado. `gastos_recientes` no lo sustituye,
+  // solo guarda concepto/tipo/fecha/total/forma.
+  if (!guardadoEnCola) return;
+
+  toast('✅ Gasto guardado y en cola de envío.');
+  _gastoTocadoPorOcr = false;
+  _gastoFotoComprimidaB64 = '';
+  renderGastos();
+  } finally {
+    _guardandoGasto = false;
+  }
+}
+
+function _encolarGasto_(payload) {
+  const cola = leerSeguro('cola_gastos', []);
+  if (!_dedupeCola_(cola, payload.id)) cola.push({ ...payload, ts: Date.now(), _try: 0 });
+  // Aviso proactivo (2026-08-27, plan OCR Fase 1): con la foto ya comprimida
+  // (~200KB) esto solo debería dispararse si se acumularon MUCHOS gastos sin
+  // señal -- avisa antes de chocar con la cuota, no bloquea nada.
+  if (JSON.stringify(cola).length > 3000000) {
+    toast('⚠️ La cola de envío está muy pesada. Conéctate a internet para vaciarla antes de capturar más gastos con foto.', 6000);
+  }
+  const guardado = guardarSeguro('cola_gastos', cola);
+  actualizarBadgePendientes();
+  if (!guardado) {
+    toast('⚠️ No se pudo guardar en la cola (memoria del teléfono llena). Este gasto puede perderse -- libera espacio o repórtalo.', 8000);
+    return false;
+  }
+  procesarColaGastos();
+  return true;
+}
+
+let _procGastoEnCurso = false;
+async function procesarColaGastos() {
+  if (_procGastoEnCurso || !navigator.onLine) return;
+  const url = getScriptUrl();
+  if (!url || !API_TOKEN) return;
+  const cola = leerSeguro('cola_gastos', []);
+  if (!cola.length) return;
+  _procGastoEnCurso = true;
+  try {
+    for (const item of [...cola]) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify(item),
+        });
+        const d = await res.json();
+        if (d && d.ok && item.foto && d.fotoOk === false) {
+          // El servidor acepta el gasto aunque Drive rechace la foto: responde
+          // ok:true con fotoOk:false. Antes solo se miraba `d.ok`, así que el
+          // item se borraba de la cola y la evidencia se perdía sin forma de
+          // reenviarla desde la app. Se conserva para reintentar: el servidor
+          // completa la foto sobre la fila que ya existe (rama YA_EXISTIA).
+          _bumpIntentoGasto_(item.id);
+        } else if (d && d.ok) {
+          const actual = leerSeguro('cola_gastos', []).filter(e => e.id !== item.id);
+          guardarSeguro('cola_gastos', actual);
+        } else {
+          _bumpIntentoGasto_(item.id);
+        }
+      } catch (_) {
+        _bumpIntentoGasto_(item.id);
+      }
+    }
+  } finally {
+    _procGastoEnCurso = false;
+    actualizarBadgePendientes();
+  }
+}
+function _bumpIntentoGasto_(id) {
+  const cola = leerSeguro('cola_gastos', []);
+  cola.forEach(e => { if (e.id === id) e._try = (e._try || 0) + 1; });
+  guardarSeguro('cola_gastos', cola);
+}
+
+async function cargarCatalogo() {
+  if (!API_TOKEN) return;
+  document.getElementById('app').innerHTML = '<div class="card">Cargando catálogo…</div>';
+  try {
+    const url = getScriptUrl();
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo: 'catalogo', token: API_TOKEN })
+    });
+    const filas = await res.json();
+    if (filas && filas.error) throw new Error(filas.error);
+    CATALOGO = (filas || []).map(p => ({
+      codigo: p.CODIGO || '', descripcion: p.DESCRIPCION || '',
+      categoria: (p.CATEGORIA || '').trim() || 'Sin categoría',
+      // J-4 (2026-07-22): costo YA venía en esta misma respuesta (productos.csv)
+      // pero se descartaba -- se necesita para valuar en pesos la diferencia
+      // del conteo (cantidad × costo) en el resumen al cerrar.
+      costo: Number(p.COSTO_CLIENTE) || 0,
+    })).filter(p => p.codigo);
+    CATEGORIAS = [...new Set(CATALOGO.map(p => p.categoria))].sort();
+    CATALOGO_FRESCO = true;
+    _guardarCatalogoCache_(CATALOGO, CATEGORIAS);
+    _cargarStockTeorico_(); // best-effort, no bloquea el arranque si tarda o falla
+    _arrancarApp_();
+  } catch (e) {
+    // Sin red (o sin señal en bodega): usar el último catálogo guardado en vez
+    // de dejar la app inutilizable -- contradice la premisa offline-first que
+    // el resto del flujo (cola de conteo) ya cumple.
+    const cache = leerSeguro('catalogo_cache', null);
+    if (cache && cache.catalogo && cache.catalogo.length) {
+      CATALOGO = cache.catalogo;
+      CATEGORIAS = cache.categorias || [...new Set(CATALOGO.map(p => p.categoria))].sort();
+      CATALOGO_FRESCO = false;
+      toast('Sin conexión: usando catálogo guardado de hace ' + _haceCuanto_(cache.ts) + '.', 5000);
+      _cargarStockTeorico_(); // cae al respaldo local (stock_teorico_cache) si tampoco hay señal
+      _arrancarApp_();
+    } else {
+      document.getElementById('app').innerHTML =
+        '<div class="card">⚠️ No se pudo cargar el catálogo: ' + esc(e.message || e) +
+        '<button class="btn secondary" style="width:100%;margin-top:10px" onclick="_reabrirTokenGate_()">🔑 Cambiar token</button></div>';
+    }
+  }
+}
+
+// Sin esto, un token mal tecleado (o revocado) dejaba la app atorada en esta
+// tarjeta de error para siempre: no había forma de volver a escribir el token
+// salvo borrando datos del navegador a mano (impráctico en bodega, en el celular).
+function _reabrirTokenGate_() {
+  API_TOKEN = '';
+  localStorage.removeItem('api_token');
+  document.getElementById('app').innerHTML = '';
+  const inp = document.getElementById('tg_input');
+  if (inp) inp.value = '';
+  _tokenGateCheck();
+}
+
+// Punto de entrada tras tener catálogo (de red o de cache): retoma un conteo
+// sin terminar si existe (F2: nunca perder un conteo a medias), o va al
+// selector de categoría.
+function _arrancarApp_() {
+  const pendiente = leerSeguro('conteo_actual', null);
+  if (pendiente && pendiente.items && pendiente.items.length) {
+    CONTEO_ACTUAL = pendiente;
+    // J-4: "continuar el conteo de ayer (68/120)" -- contar 120 productos no
+    // se hace de una sentada, avisar CUÁNTO llevas hace que retomar se sienta
+    // como progreso, no como empezar de cero otra vez.
+    const contados = pendiente.items.filter(it => it.cantidad !== null).length;
+    toast('Retomando el conteo de "' + pendiente.categoria + '" (' + contados + '/' + pendiente.items.length + ').', 4000);
+    renderListaConteo();
+  } else {
+    renderSelectorCategoria();
+  }
+}
+
+if (API_TOKEN) { _iniciarAppSegunModo_(); _cargarConfiguracionEcosistema_(); }
+
+// J-1: cambiar de modo -- se recuerda en localStorage para la próxima vez
+// que se abra la app. Ir a Inventario carga el catálogo SOLO la primera vez
+// (si ya estaba cargado -- p. ej. se volvió de ahí a Gastos -- no se vuelve
+// a pedir a la red).
+function _irAInventario_() {
+  MODO_ACTUAL = 'inventario';
+  localStorage.setItem('modo_app', MODO_ACTUAL);
+  _pintarTitulo_();
+  if (CATALOGO.length) _arrancarApp_();
+  else cargarCatalogo();
+}
+function _irAGastos_() {
+  MODO_ACTUAL = 'gastos';
+  localStorage.setItem('modo_app', MODO_ACTUAL);
+  _pintarTitulo_();
+  renderGastos();
+}
+
+// ── Historial de conteos (server: exportarConteoInventarioERP_ / hoja
+// "Conteo Inventario"). Se usa para "última vez contado" y "mermas". ────────
+let HIST_CONTEOS = null; // cache en memoria de la respuesta {campos, filas}
+
+async function _cargarHistConteos_() {
+  if (HIST_CONTEOS) return HIST_CONTEOS;
+  if (!navigator.onLine || !API_TOKEN) return null;
+  try {
+    const url = getScriptUrl();
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo: 'conteo_inventario_erp', token: API_TOKEN })
+    });
+    const d = await res.json();
+    if (!d || !d.ok || !Array.isArray(d.filas)) return null;
+    HIST_CONTEOS = d.filas;
+    return HIST_CONTEOS;
+  } catch (_) { return null; }
+}
+
+function _parseFechaMX_(s) {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return null;
+  return new Date(+m[3], +m[2] - 1, +m[1]);
+}
+
+// Mejora #19 (menú INVENTARIO 2026-07-15): en vez de esperar a que el usuario
+// elija UNA categoría para enterarse de "hace cuánto se contó", se pinta un
+// aviso junto a CADA categoría del selector desde que se abre -- "nunca
+// contada" o "+30 días sin contar" son las únicas señales que importan (una
+// categoría fresca no necesita ruido visual). Requiere el historial del
+// servidor -- si no hay conexión, simplemente no aparecen avisos (no rompe
+// el selector, que sigue funcionando 100% offline con el catálogo cacheado).
+async function _pintarAvisosCategorias_() {
+  const filas = await _cargarHistConteos_();
+  if (!filas) return;
+  const ultimaPorCat = {}; // categoria(string) -> Date más reciente
+  filas.forEach(f => {
+    const cat = f['Categoria'] || ''; const f2 = _parseFechaMX_(f['Fecha']);
+    if (!cat || !f2) return;
+    if (!ultimaPorCat[cat] || f2 > ultimaPorCat[cat]) ultimaPorCat[cat] = f2;
+  });
+  const hoy = Date.now();
+  const avisoDe = (catTxt) => {
+    const u = ultimaPorCat[catTxt];
+    if (!u) return '<span style="color:#B00020;font-weight:600"> · nunca contada</span>';
+    const dias = Math.round((hoy - u.getTime()) / 86400000);
+    if (dias > 30) return `<span style="color:#B45309;font-weight:600"> · +${dias}d sin contar</span>`;
+    return ''; // fresca: sin ruido visual
+  };
+  document.querySelectorAll('[data-cat-aviso]').forEach(el => {
+    const catTxt = el.getAttribute('data-cat-aviso');
+    el.innerHTML = avisoDe(catTxt);
+  });
+}
+
+// Historial de mermas: compara los 2 conteos más recientes de una categoría,
+// por código, y muestra qué subió/bajó entre uno y otro.
+async function verMermas() {
+  const cat = CONTEO_ACTUAL ? CONTEO_ACTUAL.categoria : null;
+  document.getElementById('app').innerHTML = '<div class="card">Buscando conteos anteriores…</div>';
+  const filas = await _cargarHistConteos_();
+  if (!filas) {
+    document.getElementById('app').innerHTML =
+      '<div class="card">⚠️ No se pudo leer el historial (necesitas conexión). <button class="btn secondary" style="width:100%;margin-top:10px" onclick="renderSelectorCategoria()">← Volver</button></div>';
+    return;
+  }
+  const porSesion = {}; // id_conteo -> {fecha, categoria, items:{codigo:cantidad}}
+  filas.forEach(f => {
+    const id = f['ID Conteo']; if (!id) return;
+    if (!porSesion[id]) porSesion[id] = { fecha: f['Fecha'], categoria: f['Categoria'], items: {} };
+    porSesion[id].items[f['Código']] = { cantidad: Number(f['Cantidad Física']) || 0, desc: f['Descripción'] };
+  });
+  let sesiones = Object.values(porSesion);
+  if (cat && cat !== 'Todo el catálogo') sesiones = sesiones.filter(s => s.categoria === cat);
+  sesiones.sort((a, b) => (_parseFechaMX_(b.fecha) || 0) - (_parseFechaMX_(a.fecha) || 0));
+  if (sesiones.length < 2) {
+    document.getElementById('app').innerHTML =
+      '<div class="card">Todavía no hay 2 conteos de esta categoría para comparar.<button class="btn secondary" style="width:100%;margin-top:10px" onclick="renderSelectorCategoria()">← Volver</button></div>';
+    return;
+  }
+  const [nuevo, viejo] = sesiones;
+  const codigos = new Set([...Object.keys(nuevo.items), ...Object.keys(viejo.items)]);
+  const cambios = [...codigos].map(cod => {
+    const n = nuevo.items[cod] ? nuevo.items[cod].cantidad : null;
+    const v = viejo.items[cod] ? viejo.items[cod].cantidad : null;
+    const desc = (nuevo.items[cod] || viejo.items[cod] || {}).desc || '';
+    return { cod, desc, n, v, delta: (n !== null && v !== null) ? (n - v) : null };
+  }).filter(c => c.delta !== null && c.delta !== 0)
+    .sort((a, b) => a.delta - b.delta);
+  const filasHtml = cambios.length ? cambios.map(c => `
+    <div class="fila-producto">
+      <div class="info">
+        <div>${esc(c.desc)}</div>
+        <div class="codigo">${esc(c.cod)} · antes ${c.v} → ahora ${c.n}</div>
+      </div>
+      <strong style="color:${c.delta < 0 ? '#B00020' : '#1f8a2d'}">${c.delta > 0 ? '+' : ''}${c.delta}</strong>
+    </div>`).join('') : '<p style="font-size:13px;color:#666">Sin diferencias entre estos dos conteos.</p>';
+  document.getElementById('app').innerHTML = `
+    <div class="card">
+      <strong>Mermas: ${esc(viejo.fecha)} → ${esc(nuevo.fecha)}</strong>
+      <div style="font-size:12px;color:#666;margin-bottom:8px">${esc(nuevo.categoria)}</div>
+      ${filasHtml}
+      <button class="btn secondary" style="width:100%;margin-top:10px" onclick="renderSelectorCategoria()">← Volver</button>
+    </div>`;
+}
+
+// Mejora #20 (menú INVENTARIO 2026-07-15): un producto que sale en CERO en 3+
+// conteos SEGUIDOS (los más recientes) suele significar que ya no se vende /
+// está descontinuado pero sigue vivo en el catálogo -- vale la pena
+// revisarlo antes de seguir comprándolo o contándolo. Función pura (agrega el
+// historial ya leído), separada para poder testearla sin red ni DOM.
+function _cerosRepetidos(filas, minSeguidos) {
+  const min = minSeguidos || 3;
+  const porCodigo = {};
+  (filas || []).forEach(f => {
+    const cod = f['Código']; if (!cod) return;
+    const fecha = _parseFechaMX_(f['Fecha']); if (!fecha) return;
+    (porCodigo[cod] = porCodigo[cod] || []).push({ fecha, cantidad: Number(f['Cantidad Física']) || 0, desc: f['Descripción'] || '' });
+  });
+  const resultado = [];
+  Object.keys(porCodigo).forEach(cod => {
+    const arr = porCodigo[cod].sort((a, b) => b.fecha - a.fecha); // más reciente primero
+    let seguidos = 0;
+    for (const x of arr) { if (x.cantidad === 0) seguidos++; else break; }
+    if (seguidos >= min) resultado.push({ codigo: cod, desc: arr[0].desc, veces: seguidos, ultima: arr[0].fecha });
+  });
+  resultado.sort((a, b) => b.veces - a.veces);
+  return resultado;
+}
+
+async function verCerosRepetidos() {
+  document.getElementById('app').innerHTML = '<div class="card">Buscando conteos anteriores…</div>';
+  const filas = await _cargarHistConteos_();
+  if (!filas) {
+    document.getElementById('app').innerHTML =
+      '<div class="card">⚠️ No se pudo leer el historial (necesitas conexión). <button class="btn secondary" style="width:100%;margin-top:10px" onclick="renderSelectorCategoria()">← Volver</button></div>';
+    return;
+  }
+  const productos = _cerosRepetidos(filas, 3);
+  const filasHtml = productos.length ? productos.map(p => `
+    <div class="fila-producto">
+      <div class="info">
+        <div>${esc(p.desc)}</div>
+        <div class="codigo">${esc(p.codigo)} · última vez ${p.ultima.toLocaleDateString('es-MX')}</div>
+      </div>
+      <strong style="color:#B00020">${p.veces}×</strong>
+    </div>`).join('') : '<p style="font-size:13px;color:#666">Ningún producto lleva 3+ conteos seguidos en cero.</p>';
+  document.getElementById('app').innerHTML = `
+    <div class="card">
+      <strong>🚫 Productos en cero 3+ veces seguidas</strong>
+      <div style="font-size:12px;color:#666;margin-bottom:8px">Puede significar producto descontinuado o que ya no se vende — revísalo antes de seguir comprándolo.</div>
+      ${filasHtml}
+      <button class="btn secondary" style="width:100%;margin-top:10px" onclick="renderSelectorCategoria()">← Volver</button>
+    </div>`;
+}
+
+// Mejora #21 (menú INVENTARIO 2026-07-15): ranking de productividad por
+// contador. El campo "quién contó" YA se preguntaba al cerrar un conteo
+// (prompt en cerrarConteo()), pero el servidor lo descartaba en silencio
+// (CONTEO_HDR no tenía columna "Contador") -- corregido en apps_script.js.
+// Conteos guardados ANTES de ese fix simplemente caen en "(sin nombre)",
+// que es honesto (no se inventa un contador que no se capturó). Función
+// pura, separada para poder testearla sin red ni DOM.
+function _rankingContadores(filas) {
+  const porContador = {};
+  (filas || []).forEach(f => {
+    const nombre = String(f['Contador'] || '').trim() || '(sin nombre)';
+    const idConteo = f['ID Conteo'] || '';
+    const e = porContador[nombre] || (porContador[nombre] = { contador: nombre, items: 0, sesiones: new Set() });
+    e.items++;
+    if (idConteo) e.sesiones.add(idConteo);
+  });
+  return Object.values(porContador)
+    .map(e => ({ contador: e.contador, items: e.items, sesiones: e.sesiones.size }))
+    .sort((a, b) => b.items - a.items);
+}
+
+async function verRankingContadores() {
+  document.getElementById('app').innerHTML = '<div class="card">Buscando historial de conteos…</div>';
+  const filas = await _cargarHistConteos_();
+  if (!filas) {
+    document.getElementById('app').innerHTML =
+      '<div class="card">⚠️ No se pudo leer el historial (necesitas conexión). <button class="btn secondary" style="width:100%;margin-top:10px" onclick="renderSelectorCategoria()">← Volver</button></div>';
+    return;
+  }
+  const ranking = _rankingContadores(filas);
+  const filasHtml = ranking.length ? ranking.map((r, i) => `
+    <div class="fila-producto">
+      <div class="info">
+        <div>${i + 1}. ${esc(r.contador)}</div>
+        <div class="codigo">${r.sesiones} conteo${r.sesiones === 1 ? '' : 's'} cerrado${r.sesiones === 1 ? '' : 's'}</div>
+      </div>
+      <strong>${r.items} productos</strong>
+    </div>`).join('') : '<p style="font-size:13px;color:#666">Todavía no hay conteos registrados.</p>';
+  document.getElementById('app').innerHTML = `
+    <div class="card">
+      <strong>🏆 Ranking por contador</strong>
+      <div style="font-size:12px;color:#666;margin-bottom:8px">Productos contados en total, según quién capturó cada conteo.</div>
+      ${filasHtml}
+      <button class="btn secondary" style="width:100%;margin-top:10px" onclick="renderSelectorCategoria()">← Volver</button>
+    </div>`;
+}
+
+// Mejora #18 (menú INVENTARIO 2026-07-15): antes solo se podía elegir UNA
+// categoría o "todo el catálogo" -- si Miguel quería contar 2-3 categorías
+// juntas (p. ej. "hoy me toca Tornillos y Tuercas") tenía que hacer conteos
+// separados. Ahora es una lista de checkboxes; "Todo el catálogo" es un
+// atajo que desmarca/deshabilita las demás (contradictorio marcarlas junto
+// con "todo"). Función pura del cálculo de qué productos entran, separada
+// para poder testearla sin DOM.
+function _productosDeCategorias(catalogo, categorias, todo) {
+  if (todo) return catalogo.slice();
+  if (!categorias.length) return []; // nada marcado -> nada que contar (nunca "todo" por accidente)
+  const set = new Set(categorias);
+  return catalogo.filter(p => set.has(p.categoria));
+}
+
+// Mejora 2 (Inventario, 2026-07-29): estado del sello de frescura -- función
+// pura (testeable sin DOM/red/fecha del sistema) para los 3 umbrales que
+// pide el plan. "tsISO" es SIEMPRE el timestamp que publicó el ERP (nunca el
+// de la descarga del celular -- ver _guardarStockTeoricoCache_). "bloquea"
+// marca cuándo hay que pedir confirmación antes de dejar seguir contando.
+function _estadoFrescuraStock_(tsISO, ahoraMs) {
+  ahoraMs = (ahoraMs != null) ? ahoraMs : Date.now();
+  const t = tsISO ? new Date(tsISO).getTime() : NaN;
+  if (isNaN(t)) {
+    return { nivel: 'rojo', bloquea: true,
+      texto: '🔴 El stock teórico nunca se ha sincronizado. Sincroniza el ERP antes de contar.' };
+  }
+  const horas = (ahoraMs - t) / 3600000;
+  if (horas > STOCK_HORAS_ROJO_PUBLICADO) {
+    const diasRojo = Math.round(STOCK_HORAS_ROJO_PUBLICADO / 24);
+    return { nivel: 'rojo', bloquea: true,
+      texto: '🔴 Stock teórico de hace más de ' + diasRojo + (diasRojo === 1 ? ' día' : ' días') + '. Sincroniza el ERP antes de contar.' };
+  }
+  const mismoDiaCal = new Date(t).toDateString() === new Date(ahoraMs).toDateString();
+  if (mismoDiaCal) {
+    const hora = new Date(t).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+    return { nivel: 'verde', bloquea: false, texto: 'Stock teórico al día — actualizado hoy ' + hora };
+  }
+  const dias = Math.max(1, Math.round(horas / 24));
+  return { nivel: 'ambar', bloquea: false,
+    texto: '⚠️ Stock teórico de hace ' + dias + (dias === 1 ? ' día' : ' días') + ' — las diferencias pueden ser falsas.' };
+}
+
+// J-4 + Mejora 2: antigüedad del stock teórico -- "¿qué tan mal estamos?"
+// empieza por saber qué tan fresco es el dato contra el que se compara. Se
+// muestra ANTES de contar (pantalla de selección de categoría), no al
+// final -- de nada sirve enterarse cuando ya recorriste el almacén.
+function _htmlAntiguedadStockTeorico_() {
+  const cache = leerSeguro('stock_teorico_cache', null);
+  const estado = _estadoFrescuraStock_(cache && cache.ts);
+  const color = estado.nivel === 'verde' ? '#1f8a2d' : estado.nivel === 'ambar' ? '#B45309' : '#B00020';
+  return `<div class="card" style="margin-bottom:0;font-size:12px;color:${color};display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <span>${estado.texto}</span>
+    <button class="btn secondary" style="padding:4px 10px;font-size:11px;flex-shrink:0;white-space:nowrap" onclick="_actualizarStockTeoricoAhora_()">🔄 Actualizar ahora</button>
+  </div>`;
+}
+
+// J-4: marca chkTodo y arranca el conteo en un solo toque -- antes había que
+// encontrar el checkbox entre las categorías, no era obvio que "Todo el
+// catálogo" ya vivía ahí.
+function _contarTodoElCatalogo_() {
+  const chk = document.getElementById('chkTodo');
+  if (chk) { chk.checked = true; _alMarcarTodo_(); }
+  iniciarConteo();
+}
+
+function renderSelectorCategoria() {
+  const avisoCache = CATALOGO_FRESCO ? '' :
+    '<div class="card" style="background:#FFF6DD;margin-bottom:0;font-size:12px">⚠️ Catálogo sin conexión reciente — puede no reflejar altas/bajas nuevas.</div>';
+  const filas = CATEGORIAS.map((c, i) => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;cursor:pointer">
+      <input type="checkbox" class="chkCat" id="catchk_${i}" value="${esc(c)}" onchange="_alCambiarCategoria_()">
+      <span style="flex:1">${esc(c)}<span data-cat-aviso="${esc(c)}"></span></span>
+    </label>`).join('');
+  document.getElementById('app').innerHTML = `
+    <button class="btn secondary" style="width:100%;margin:0 12px 12px;max-width:calc(100% - 24px)" onclick="_irAGastos_()">💰 Volver a Gastos</button>
+    ${avisoCache}
+    ${_htmlAntiguedadStockTeorico_()}
+    <div class="card">
+      <button class="btn" style="width:100%" onclick="_contarTodoElCatalogo_()">📋 Contar TODO el catálogo (${CATALOGO.length} productos)</button>
+    </div>
+    <div class="card">
+      <label style="font-size:13px;font-weight:600">…o elige categorías específicas</label>
+      <label style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:13px;font-weight:600;border-bottom:1px solid #F0F0F0;margin-bottom:2px;cursor:pointer">
+        <input type="checkbox" id="chkTodo" onchange="_alMarcarTodo_()">
+        <span style="flex:1">Todo el catálogo (${CATALOGO.length} productos)<span data-cat-aviso="Todo el catálogo"></span></span>
+      </label>
+      ${filas}
+      <button class="btn" style="width:100%;margin-top:10px" onclick="iniciarConteo()">Empezar conteo</button>
+    </div>
+    <div class="card">
+      <button class="btn secondary" style="width:100%" onclick="verColaPendiente()">📋 Ver cola pendiente de envío</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px" onclick="verMermas()">📉 Ver mermas entre conteos</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px" onclick="verCerosRepetidos()">🚫 Productos en cero 3+ veces</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px" onclick="verRankingContadores()">🏆 Ranking por contador</button>
+    </div>`;
+  _pintarAvisosCategorias_();
+}
+
+// "Todo el catálogo" es excluyente: marcarlo desmarca y deshabilita las
+// categorías individuales (contarlas todas Y aparte no tiene sentido).
+function _alMarcarTodo_() {
+  const todo = document.getElementById('chkTodo').checked;
+  document.querySelectorAll('.chkCat').forEach(c => { c.disabled = todo; if (todo) c.checked = false; });
+}
+function _alCambiarCategoria_() {
+  const algunaMarcada = [...document.querySelectorAll('.chkCat')].some(c => c.checked);
+  if (algunaMarcada) document.getElementById('chkTodo').checked = false;
+}
+function _categoriasSeleccionadas_() {
+  return [...document.querySelectorAll('.chkCat:checked')].map(c => c.value);
+}
+
+let CONTEO_ACTUAL = null; // { categoria, items: [{codigo, descripcion, cantidad|null}], cerrado, queueId, contador }
+
+function _guardarConteoActual_() {
+  if (CONTEO_ACTUAL) guardarSeguro('conteo_actual', CONTEO_ACTUAL);
+  else localStorage.removeItem('conteo_actual');
+}
+
+function iniciarConteo() {
+  const todo = document.getElementById('chkTodo').checked;
+  const categorias = _categoriasSeleccionadas_();
+  if (!todo && !categorias.length) { toast('Marca al menos una categoría (o "Todo el catálogo").'); return; }
+  // Mejora 2: si el stock teórico está rojo (nunca sincronizado o de más de
+  // una semana), pedir confirmación explícita ANTES de contar -- contar bien
+  // contra un teórico viejo es peor que no contar, persigues un fantasma.
+  const cacheST = leerSeguro('stock_teorico_cache', null);
+  const estadoST = _estadoFrescuraStock_(cacheST && cacheST.ts);
+  if (estadoST.bloquea && !confirm(estadoST.texto + '\n\n¿Contar de todos modos?')) return;
+  const productos = _productosDeCategorias(CATALOGO, categorias, todo);
+  CONTEO_ACTUAL = {
+    categoria: todo ? 'Todo el catálogo' : categorias.join(', '),
+    // J-4: costo viaja con cada item (viene del catálogo) para poder valuar
+    // en pesos la diferencia en el resumen al cerrar -- nunca se manda al
+    // servidor, es solo para el resumen local.
+    items: productos.map(p => ({ codigo: p.codigo, descripcion: p.descripcion, cantidad: null, costo: p.costo || 0 })),
+    cerrado: false,
+    queueId: null,
+    contador: '',
+    filtro: '',
+    soloFaltan: false,
+  };
+  _guardarConteoActual_();
+  renderListaConteo();
+}
+
+// Mejora #22 (2026-07-15) + J-4 (Bloque J, 2026-07-22): compara la cantidad
+// contada contra el stock que el ERP espera (STOCK_TEORICO). Referencia
+// silenciosa (gris) si aún no se ha contado; verde si coincide exacto;
+// ámbar/rojo por severidad si difiere (J-4: "Teórico X · Contado Y ·
+// Diferencia ±Z (±%)"), nunca bloquea -- es información para revisar.
+// Mejora 3: "teórico N" es tocable -- muestra de qué se compone (compras −
+// ventas ± ajustes) sin tener que volver a la computadora a abrir el kardex.
+function _spanTeoricoClic_(codigo, texto) {
+  return `<span style="cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();_mostrarDesgloseStock_('${escAttrVal(codigo)}')">${texto}</span>`;
+}
+function _htmlTeorico(codigo, cantidad) {
+  const e = STOCK_TEORICO.get(String(codigo || '').toLowerCase());
+  if (!e) return '';
+  const teoTocable = _spanTeoricoClic_(codigo, 'teórico ' + e.stock);
+  if (cantidad === null) return ` · <span style="color:#999">${teoTocable}</span>`;
+  const diff = cantidad - e.stock;
+  if (diff === 0) return ` · <span style="color:#1f8a2d">${teoTocable} · contado ${cantidad} ✓</span>`;
+  const pct = e.stock !== 0 ? Math.round((diff / e.stock) * 100) : 100;
+  const severo = Math.abs(pct) > 10;
+  const color = severo ? '#B00020' : '#B45309';
+  const signo = diff > 0 ? '+' : '';
+  return ` · <span style="color:${color};font-weight:600">${teoTocable} · contado ${cantidad} · dif ${signo}${diff} (${signo}${pct}%) ⚠️</span>`;
+}
+
+// Fila de un producto del conteo -- compartida por renderListaConteo() y
+// _filtrarLista() (antes duplicada) para no tener 2 copias que desincronizar.
+function _filaConteoHtml(it, i) {
+  return `
+    <div class="fila-producto">
+      <div class="info">
+        <div>${esc(it.descripcion)}${it.nuevo ? ' <span style="color:#0d6efd;font-size:11px;font-weight:700">● NUEVO</span>' : ''}</div>
+        <div class="codigo" id="teo_${i}">${esc(it.codigo)}${_htmlTeorico(it.codigo, it.cantidad)}</div>
+      </div>
+      <input type="number" min="0" step="1" inputmode="numeric"
+             data-idx="${i}" value="${it.cantidad === null ? '' : it.cantidad}"
+             placeholder="—"
+             ${CONTEO_ACTUAL.cerrado
+               ? `readonly onclick="editarCampoCerrado(${i})"`
+               : `onchange="_actualizarCantidad(${i}, this.value)"`}>
+    </div>`;
+}
+
+// J-4: filtro compartido por renderListaConteo() y _refrescarListaConteo_()
+// -- texto libre (código o descripción) + "solo los que faltan" (cantidad
+// aún null), combinables. Función pura, testeable sin DOM.
+function _itemsFiltrados_(items, filtroTexto, soloFaltan) {
+  const filtro = (filtroTexto || '').toLowerCase();
+  return items
+    .map((it, i) => ({ it, i }))
+    .filter(({ it }) => {
+      if (soloFaltan && it.cantidad !== null) return false;
+      if (!filtro) return true;
+      return it.descripcion.toLowerCase().includes(filtro) || it.codigo.toLowerCase().includes(filtro);
+    });
+}
+
+// Mejora 1 (Inventario, 2026-07-29): la comparación contado-vs-teórico YA
+// existía renglón por renglón (_htmlTeorico) y en el resumen final
+// (_resumenConteo_) -- lo que faltaba era verla de un vistazo SIN recorrer
+// toda la lista. Misma fórmula que _resumenConteo_, solo el texto de la
+// barra.
+function _htmlBarraResumen_(items, stockTeoricoMap) {
+  const r = _resumenConteo_(items, stockTeoricoMap);
+  const dinero = r.dineroFalt + r.dineroSobr;
+  return `Contados ${r.contados} de ${items.length} · ✅ ${r.cuadran} cuadran` +
+    (r.difieren ? ` · ⚠️ ${r.difieren} difieren` : '') +
+    (dinero > 0 ? ` · $${dinero.toFixed(2)} de diferencia` : '');
+}
+
+function renderListaConteo() {
+  const itemsFiltrados = _itemsFiltrados_(CONTEO_ACTUAL.items, CONTEO_ACTUAL.filtro, CONTEO_ACTUAL.soloFaltan);
+  const filas = itemsFiltrados.map(({ it, i }) => _filaConteoHtml(it, i)).join('');
+  const bannerCierre = !CONTEO_ACTUAL.cerrado ? '' :
+    (CONTEO_ACTUAL._colaFallo
+      ? '<div class="card" style="background:#FDEAEA;margin-top:10px">⚠️ El conteo se cerró pero NO se pudo guardar en la cola de envío (memoria llena). Toca "Ver cola pendiente" o repórtalo — este conteo puede perderse.</div>'
+      : '<div class="card" style="background:#EAF6EC;margin-top:10px">✅ Conteo cerrado y en cola de envío.</div>');
+  document.getElementById('app').innerHTML = `
+    <div id="barraResumenConteo" style="position:sticky;top:0;z-index:5;background:#fff;padding:8px 14px;font-size:12px;color:#666;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+      ${_htmlBarraResumen_(CONTEO_ACTUAL.items, STOCK_TEORICO)}
+    </div>
+    <div class="card" style="margin-top:0">
+      <strong>${esc(CONTEO_ACTUAL.categoria)}</strong>
+      <input id="buscadorConteo" placeholder="Buscar por código o descripción…" value="${escAttrVal(CONTEO_ACTUAL.filtro || '')}" oninput="_filtrarLista(this.value)">
+      <label style="display:flex;align-items:center;gap:6px;padding:6px 0 2px;font-size:12.5px;cursor:pointer">
+        <input type="checkbox" id="chkSoloFaltan" ${CONTEO_ACTUAL.soloFaltan ? 'checked' : ''} onchange="_alCambiarSoloFaltan_(this.checked)">
+        <span>Ver solo los que faltan</span>
+      </label>
+      ${CONTEO_ACTUAL.cerrado ? '' : `<button class="btn secondary" style="width:100%;margin-top:4px" onclick="agregarProductoNuevo()">➕ Producto que no está en la lista</button>`}
+      <div id="listaItemsConteo">${filas || '<p style="font-size:13px;color:#666;padding:8px 0">Sin resultados para ese filtro.</p>'}</div>
+      ${bannerCierre}
+      ${CONTEO_ACTUAL.cerrado
+        ? ''
+        : `<button class="btn" style="width:100%;margin-top:12px" onclick="cerrarConteo()">Cerrar conteo</button>`}
+      <button class="btn secondary" style="width:100%;margin-top:8px" onclick="exportarConteoCSV()">⬇️ Exportar (.csv)</button>
+      <button class="btn secondary" style="width:100%;margin-top:8px" onclick="_volverASelector_()">← Elegir otra categoría</button>
+    </div>`;
+}
+
+function escAttrVal(v) { return esc(v); }
+
+function _refrescarListaConteo_() {
+  const itemsFiltrados = _itemsFiltrados_(CONTEO_ACTUAL.items, CONTEO_ACTUAL.filtro, CONTEO_ACTUAL.soloFaltan);
+  const filas = itemsFiltrados.map(({ it, i }) => _filaConteoHtml(it, i)).join('');
+  document.getElementById('listaItemsConteo').innerHTML =
+    filas || '<p style="font-size:13px;color:#666;padding:8px 0">Sin resultados para ese filtro.</p>';
+}
+
+function _filtrarLista(v) {
+  CONTEO_ACTUAL.filtro = v;
+  _refrescarListaConteo_();
+}
+
+// 2026-07-23 (pedido de Miguel): producto en el anaquel que no está en el
+// catálogo descargado -- se agrega aquí a mano, mismo patrón de prompt()
+// secuencial que ya usa cerrarConteo()/editarCampoCerrado() en este archivo
+// (no hace falta un modal nuevo). El ERP ya sabe qué hacer con un código que
+// no reconoce al importar este conteo: lo marca REVISAR y, si Miguel marca
+// "crear productos faltantes" ahí, lo da de alta en el catálogo (sin costo,
+// igual que un código nuevo en una remisión) -- cero cambio de payload ni de
+// Apps Script, {codigo, descripcion, cantidad} es lo mismo que ya se manda.
+function agregarProductoNuevo() {
+  if (CONTEO_ACTUAL.cerrado) { toast('Este conteo ya está cerrado.'); return; }
+  const codigoRaw = prompt('Código del producto nuevo (como lo vas a usar de ahora en adelante):');
+  if (codigoRaw === null) return;
+  const codigo = codigoRaw.trim();
+  if (!codigo) { toast('Código vacío -- no se agregó nada.'); return; }
+
+  const yaExiste = CONTEO_ACTUAL.items.findIndex(
+    it => it.codigo.toLowerCase() === codigo.toLowerCase());
+  if (yaExiste !== -1) {
+    toast('Ese código ya está en este conteo -- búscalo arriba y captura la cantidad ahí.', 5000);
+    CONTEO_ACTUAL.filtro = codigo;
+    _guardarConteoActual_();
+    renderListaConteo();
+    return;
+  }
+
+  const descripcionRaw = prompt('Descripción de ' + codigo + ':');
+  if (descripcionRaw === null) return;
+  const descripcion = descripcionRaw.trim();
+  if (!descripcion) { toast('Descripción vacía -- no se agregó nada.'); return; }
+
+  const cantidadRaw = prompt('¿Cuántas piezas contaste de ' + codigo + '?');
+  if (cantidadRaw === null) return;
+  const n = Number(cantidadRaw.trim());
+  if (isNaN(n) || n < 0 || !Number.isInteger(n)) {
+    toast('Cantidad inválida: escribe un número entero de 0 en adelante.'); return;
+  }
+
+  CONTEO_ACTUAL.items.push({ codigo, descripcion, cantidad: n, costo: 0, nuevo: true });
+  _guardarConteoActual_();
+  toast('Agregado: ' + codigo + ' — se creará en el catálogo cuando se importe este conteo.', 5000);
+  renderListaConteo();
+}
+function _alCambiarSoloFaltan_(checked) {
+  CONTEO_ACTUAL.soloFaltan = checked;
+  _refrescarListaConteo_();
+}
+
+function _volverASelector_() {
+  const contados = CONTEO_ACTUAL ? CONTEO_ACTUAL.items.filter(it => it.cantidad !== null).length : 0;
+  if (!CONTEO_ACTUAL.cerrado && contados > 0 &&
+      !confirm('Tienes ' + contados + ' producto(s) contados sin cerrar. Si sales ahora, el conteo queda guardado y puedes retomarlo después. ¿Salir?')) {
+    return;
+  }
+  // El conteo (cerrado o no) sigue guardado en localStorage y se retoma solo
+  // la próxima vez que se abra la app -- ver _arrancarApp_(). Si YA se cerró y
+  // encoló, no hace falta seguir mostrándolo como "actual".
+  if (CONTEO_ACTUAL.cerrado) { CONTEO_ACTUAL = null; _guardarConteoActual_(); }
+  renderSelectorCategoria();
+}
+
+// Compartido por exportarConteoCSV() y exportarGastosCSV() -- antes cada uno
+// armaba su propio Blob/link a mano, duplicado.
+function _descargarCSV_(filas, nombreArchivo) {
+  const csv = filas.map(f => f.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombreArchivo;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportarConteoCSV() {
+  if (!CONTEO_ACTUAL) return;
+  const filas = [['Codigo', 'Descripcion', 'Cantidad']];
+  CONTEO_ACTUAL.items.forEach(it => {
+    if (it.cantidad !== null) filas.push([it.codigo, it.descripcion, it.cantidad]);
+  });
+  const nombreCat = CONTEO_ACTUAL.categoria.replace(/[^a-z0-9]+/gi, '_');
+  _descargarCSV_(filas, `conteo_${nombreCat}_${_fechaLocal_()}.csv`);
+}
+
+// Mejora (2026-09-02): gastos_recientes ya guardaba los últimos 20 -- exportar
+// a .csv para pasárselo al contador sin escribirlos a mano. Solo lo que hay
+// EN ESTE celular (no jala del servidor, mismo alcance que "recientes").
+function exportarGastosCSV() {
+  const recientes = leerSeguro('gastos_recientes', []);
+  if (!recientes.length) { toast('Sin gastos capturados todavía en este celular.'); return; }
+  const filas = [['Fecha', 'Concepto', 'Tipo', 'Forma de pago', 'Total']];
+  recientes.forEach(g => filas.push([g.fecha, g.concepto, g.tipoGasto || '', g.formaPago || '', (+g.total || 0).toFixed(2)]));
+  _descargarCSV_(filas, `gastos_${_fechaLocal_()}.csv`);
+}
+
+function _actualizarCantidad(idx, valor) {
+  const v = valor.trim();
+  const input = document.querySelector('[data-idx="' + idx + '"]');
+  if (v === '') { CONTEO_ACTUAL.items[idx].cantidad = null; }
+  else {
+    const n = Number(v);
+    const valido = !isNaN(n) && n >= 0 && Number.isInteger(n);
+    if (!valido) {
+      toast('Cantidad inválida: escribe un número entero de 0 en adelante.');
+      if (input) input.value = CONTEO_ACTUAL.items[idx].cantidad === null ? '' : CONTEO_ACTUAL.items[idx].cantidad;
+      return;
+    }
+    CONTEO_ACTUAL.items[idx].cantidad = n;
+  }
+  _guardarConteoActual_();
+  // Actualiza solo la barra de resumen y el aviso de stock teórico de ESTA
+  // fila (no re-renderiza la lista completa, para no perder el foco del campo
+  // que se está editando -- mismo motivo que ya evitaba el re-render).
+  const barra = document.getElementById('barraResumenConteo');
+  if (barra) barra.innerHTML = _htmlBarraResumen_(CONTEO_ACTUAL.items, STOCK_TEORICO);
+  const teoEl = document.getElementById('teo_' + idx);
+  if (teoEl) {
+    const it = CONTEO_ACTUAL.items[idx];
+    teoEl.innerHTML = esc(it.codigo) + _htmlTeorico(it.codigo, it.cantidad);
+  }
+}
+
+// ── Candado de cierre/edición (F4: compartido con remisiones vía localStorage) ──
+const CODIGO_BORRADO = '2526'; // respaldo local; localStorage tiene prioridad
+function _codigoActivo_() {
+  const v = (localStorage.getItem('codigo_borrado_override') || '').trim();
+  return v || CODIGO_BORRADO;
+}
+
+// Fecha LOCAL (no UTC): toISOString() usa UTC y corría la fecha del conteo un
+// día antes de ~17:00 hora local al llegar al servidor. yyyy-mm-dd en hora
+// local evita cualquier conversión de zona horaria en el camino.
+function _fechaLocal_() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// Mejora 1 (Inventario, 2026-07-29): las diferencias reales (cantidad !=
+// teórico), ordenadas de MAYOR a MENOR en pesos -- no en piezas, porque 2
+// piezas de algo caro importan más que 50 de algo barato. Función pura
+// (testeable sin DOM). Ignora lo sin tocar (nada que comparar) y lo sin
+// referencia teórica (no se puede calcular la diferencia).
+function _diferenciasOrdenadas_(items, stockTeoricoMap) {
+  const filas = [];
+  (items || []).forEach(it => {
+    if (it.cantidad === null) return;
+    const e = stockTeoricoMap.get(String(it.codigo || '').toLowerCase());
+    if (!e) return;
+    const diferencia = it.cantidad - e.stock;
+    if (diferencia === 0) return;
+    filas.push({ codigo: it.codigo, descripcion: it.descripcion, teorico: e.stock,
+      contado: it.cantidad, diferencia, valorDif: diferencia * (it.costo || 0) });
+  });
+  filas.sort((a, b) => Math.abs(b.valorDif) - Math.abs(a.valorDif));
+  return filas;
+}
+
+function cerrarConteo() {
+  // J-4: un producto NUNCA abierto y uno contado en 0 arruinaban el ERI por
+  // igual (se veían idénticos) -- ahora se distinguen, y Miguel elige qué
+  // hacer con los que nunca se tocaron ANTES de ver el resumen final.
+  const sinTocar = CONTEO_ACTUAL.items.filter(it => it.cantidad === null);
+  if (sinTocar.length) {
+    const marcarComoCero = confirm(
+      sinTocar.length + ' producto(s) nunca se abrieron (distinto de contarlos en 0).\n\n' +
+      'Aceptar = mandarlos como 0 (no hay existencia).\n' +
+      'Cancelar = dejarlos FUERA de este conteo (no se tocan, no se envían).');
+    if (marcarComoCero) {
+      sinTocar.forEach(it => { it.cantidad = 0; });
+      _guardarConteoActual_();
+    }
+  }
+  _renderRevisionDiferencias_();
+}
+
+// Mejora 1: pantalla dedicada para revisar las diferencias ANTES de mandar
+// -- hoy había que recorrer toda la lista a mano para encontrarlas. Si no
+// hay ninguna, no tiene caso mostrar una pantalla vacía -- se va derecho al
+// cierre de siempre.
+function _renderRevisionDiferencias_() {
+  const diffs = _diferenciasOrdenadas_(CONTEO_ACTUAL.items, STOCK_TEORICO);
+  if (!diffs.length) { _confirmarCierreConteo_(); return; }
+  const filasHtml = diffs.map(f => {
+    const color = f.valorDif < 0 ? '#B00020' : '#1f8a2d';
+    const signo = f.diferencia > 0 ? '+' : '';
+    const signoPeso = f.valorDif < 0 ? '-' : '+';
+    return `
+    <div class="fila-producto">
+      <div class="info">
+        <div>${esc(f.descripcion)}</div>
+        <div class="codigo">${esc(f.codigo)} · teórico ${f.teorico} · contado ${f.contado} · dif ${signo}${f.diferencia}</div>
+      </div>
+      <div style="font-weight:700;color:${color};white-space:nowrap">${signoPeso}$${Math.abs(f.valorDif).toFixed(2)}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('app').innerHTML = `
+    <div class="card">
+      <strong>🔎 Revisar diferencias (${diffs.length})</strong>
+      <p style="font-size:12px;color:#666;margin-top:4px">Ordenadas de mayor a menor en pesos -- las que más importan van primero.</p>
+    </div>
+    <div class="card" style="margin-top:0">${filasHtml}</div>
+    <div class="card">
+      <button class="btn secondary" style="width:100%" onclick="renderListaConteo()">← Regresar al conteo</button>
+      <button class="btn" style="width:100%;margin-top:8px" onclick="_confirmarCierreConteo_()">Continuar cierre →</button>
+    </div>`;
+}
+
+function _confirmarCierreConteo_() {
+  const r = _resumenConteo_(CONTEO_ACTUAL.items, STOCK_TEORICO);
+  const neto = r.dineroSobr - r.dineroFalt;
+  const netoTxt = (neto >= 0 ? '+$' : '-$') + Math.abs(neto).toFixed(2);
+  const msg =
+    `${r.contados}/${CONTEO_ACTUAL.items.length} contados · ${r.cuadran} cuadran exacto · ${r.difieren} difieren\n` +
+    `Diferencia neta en pesos: ${netoTxt}\n` +
+    `ERI estimado: ${r.eri.toFixed(1)}% (${r.nivel})\n\n` +
+    '¿Cerrar este conteo?';
+  if (!confirm(msg)) return;
+  const codigo = prompt('Código de seguridad:');
+  if (codigo === null) return;
+  if (codigo.trim() !== _codigoActivo_()) { toast('Código incorrecto'); return; }
+  if (!CONTEO_ACTUAL.contador) {
+    // I-5: si ya se capturó el nombre al conectar (o desde remision.html, mismo
+    // origen), se usa ese -- ya no hay que volver a escribirlo en cada conteo.
+    const compartido = _leerVendedorCompartido();
+    const quien = compartido || (prompt('Tus iniciales (para saber quién contó, opcional):') || '');
+    CONTEO_ACTUAL.contador = quien.trim();
+  }
+  CONTEO_ACTUAL.cerrado = true;
+  _encolarConteo(CONTEO_ACTUAL);
+  renderListaConteo();
+}
+
+function editarCampoCerrado(idx) {
+  const codigo = prompt('Este conteo ya está cerrado. Código de seguridad para editar este producto:');
+  if (codigo === null) return;
+  if (codigo.trim() !== _codigoActivo_()) { toast('Código incorrecto'); return; }
+  const nuevo = prompt('Nueva cantidad para ' + CONTEO_ACTUAL.items[idx].codigo + ':',
+                       CONTEO_ACTUAL.items[idx].cantidad);
+  if (nuevo === null) return;
+  const v = nuevo.trim();
+  const n = Number(v);
+  const valido = v === '' || (!isNaN(n) && n >= 0 && Number.isInteger(n));
+  if (!valido) { toast('Cantidad inválida: escribe un número entero de 0 en adelante.'); return; }
+  CONTEO_ACTUAL.items[idx].cantidad = (v === '') ? null : n;   // mismo guard que _actualizarCantidad
+  _guardarConteoActual_();
+  _reencolarCorreccion_();
+  renderListaConteo();
+}
+
+// F3: "editar campo cerrado" mutaba solo la memoria -- el snapshot ya
+// encolado (armado al cerrar) viajaba con la cantidad VIEJA y el ajuste del
+// ERP se hacía con el dato equivocado. Si el conteo sigue en la cola (aún no
+// se envió), se reescribe con los valores corregidos. Si ya se envió, no se
+// reinventa un reenvío (podría duplicar el ajuste en el ERP si el original ya
+// se importó) -- se avisa claramente para corregir por otra vía.
+function _reencolarCorreccion_() {
+  if (!CONTEO_ACTUAL.queueId) return;
+  const cola = leerSeguro('cola_conteo', []);
+  const idx = cola.findIndex(e => e.id === CONTEO_ACTUAL.queueId);
+  if (idx === -1) {
+    toast('Este conteo ya se había enviado al servidor. Para corregirlo, avisa para un ajuste manual en el ERP o cuenta este producto de nuevo en un conteo nuevo.', 7000);
+    return;
+  }
+  const items = CONTEO_ACTUAL.items
+    .filter(it => it.cantidad !== null)
+    .map(it => ({ codigo: it.codigo, descripcion: it.descripcion, cantidad: it.cantidad }));
+  cola[idx].items = items;
+  guardarSeguro('cola_conteo', cola);
+  toast('Corrección guardada. Se enviará con el resto de la cola.');
+}
+
+// ── Armar payload de envío (F1: blanco no viaja, 0 explícito sí) ─────────────
+// Propuesta 4 (2026-09-10): cada renglón lleva el teórico que se vio en
+// pantalla (teorico_ref, null si el celular no tenía ese producto) y la sesión
+// lleva cuándo publicó el ERP ese teórico (referencia_ts). El ERP lo usa solo
+// para mostrar si la referencia cambió entre el conteo y su revisión -- el
+// ajuste se sigue calculando allá, nunca con este número.
+function _armarPayloadConteo_(conteo, fechaISO, stockMap, referenciaTs) {
+  const items = conteo.items
+    .filter(it => it.cantidad !== null)
+    .map(it => {
+      const e = stockMap ? stockMap.get(String(it.codigo || '').toLowerCase()) : null;
+      return { codigo: it.codigo, descripcion: it.descripcion, cantidad: it.cantidad,
+               teorico_ref: e ? e.stock : null };
+    });
+  return {
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID()
+        : 'cnt_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9),
+    fecha: fechaISO,
+    categoria: conteo.categoria,
+    contador: conteo.contador || '',
+    referencia_ts: referenciaTs || '',
+    items: items,
+  };
+}
+
+_tokenGateCheck();
+
+let _procConteoEnCurso = false;
+
+function _encolarConteo(conteo) {
+  const fechaISO = _fechaLocal_();
+  const cacheST = leerSeguro('stock_teorico_cache', null);
+  const payload = _armarPayloadConteo_(conteo, fechaISO, STOCK_TEORICO, cacheST && cacheST.ts);
+  CONTEO_ACTUAL.queueId = payload.id;
+  const cola = leerSeguro('cola_conteo', []);
+  if (!_dedupeCola_(cola, payload.id)) cola.push({ ...payload, ts: Date.now(), _try: 0 });
+  const guardado = guardarSeguro('cola_conteo', cola);
+  _guardarConteoActual_();
+  actualizarBadgePendientes();
+  if (!guardado) {
+    // F5: antes, si localStorage estaba lleno, guardarSeguro fallaba en
+    // silencio y la UI igual decía "en cola de envío" -- el conteo se perdía
+    // sin que nadie lo notara.
+    CONTEO_ACTUAL._colaFallo = true;
+    _guardarConteoActual_();
+    toast('⚠️ No se pudo guardar en la cola (memoria del teléfono llena). Este conteo puede perderse -- libera espacio o repórtalo.', 8000);
+    return;
+  }
+  procesarColaConteo();
+}
+
+const MAX_INTENTOS_AVISO = 10; // ~5 min a 30s/intento: a partir de aquí se marca "atascado" en la UI de cola
+
+async function procesarColaConteo() {
+  if (_procConteoEnCurso || !navigator.onLine) return;
+  const url = getScriptUrl();
+  if (!url || !API_TOKEN) return;
+  const cola = leerSeguro('cola_conteo', []);
+  if (!cola.length) return;
+  _procConteoEnCurso = true;
+  try {
+    for (const item of [...cola]) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ tipo: 'conteo_inventario', token: API_TOKEN, ...item }),
+        });
+        const d = await res.json();
+        if (d && d.ok) {
+          const actual = leerSeguro('cola_conteo', []);
+          // Carrera real (2026-09-09): si el usuario corrigió una cantidad
+          // MIENTRAS esta petición viajaba, _reencolarCorreccion_ reescribió
+          // la cola pero lo que llegó al servidor fue la versión vieja. Antes
+          // se borraba por ID sin comparar, así que la corrección desaparecía
+          // en silencio y el ERP ajustaba con el dato equivocado.
+          // No se reenvía con el mismo ID a propósito: el ERP es idempotente
+          // por origen_conteo (services/importar.py::importar_conteo) y lo
+          // ignoraría, dejando creer que se corrigió. Se avisa, con el mismo
+          // criterio que _reencolarCorreccion_ ya usa para "ya se había
+          // enviado".
+          const enCola = actual.find(e => e.id === item.id);
+          if (enCola && JSON.stringify(enCola.items) !== JSON.stringify(item.items)) {
+            toast('⚠️ Corregiste una cantidad mientras el conteo se enviaba: viajó la cantidad anterior. Avisa para un ajuste manual en el ERP o cuenta ese producto en un conteo nuevo.', 9000);
+          }
+          guardarSeguro('cola_conteo', actual.filter(e => e.id !== item.id));
+        } else {
+          _bumpIntentoConteo(item.id);
+        }
+      } catch (_) {
+        _bumpIntentoConteo(item.id);
+      }
+    }
+  } finally {
+    _procConteoEnCurso = false;
+    actualizarBadgePendientes();
+  }
+}
+
+function _bumpIntentoConteo(id) {
+  const cola = leerSeguro('cola_conteo', []);
+  cola.forEach(e => { if (e.id === id) e._try = (e._try || 0) + 1; });
+  guardarSeguro('cola_conteo', cola);
+}
+
+// J-1: la campana ahora suma AMBAS colas (conteo + gastos) -- un pendiente es
+// un pendiente, sin importar de qué pestaña salió.
+function actualizarBadgePendientes() {
+  const n = leerSeguro('cola_conteo', []).length + leerSeguro('cola_gastos', []).length;
+  const el = document.getElementById('badgePendientes');
+  el.textContent = n ? n + ' pendiente' + (n > 1 ? 's' : '') + ' 👆' : '';
+}
+
+// UI de la cola pendiente (F6 + mejora #8, unificada J-1): ve qué falta por
+// mandar de AMBAS colas, con tope visible de intentos, reenviar uno a la vez
+// o descartarlo con aviso.
+function verColaPendiente() {
+  const colaC = leerSeguro('cola_conteo', []).map(e => ({ ...e, _cola: 'conteo' }));
+  const colaG = leerSeguro('cola_gastos', []).map(e => ({ ...e, _cola: 'gasto' }));
+  const cola = colaC.concat(colaG).sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  if (!cola.length) { toast('No hay nada pendiente de enviar.'); return; }
+  const filas = cola.map(e => {
+    const atascado = (e._try || 0) >= MAX_INTENTOS_AVISO;
+    const esGasto = e._cola === 'gasto';
+    const desc = esGasto
+      ? esc(e.concepto) + ' — $' + (Number(e.total) || 0).toFixed(2)
+      : esc(e.categoria) + ' — ' + e.items.length + ' producto(s)';
+    return `
+    <div class="fila-producto">
+      <div class="info">
+        <div>${esGasto ? '💰' : '📋'} ${desc}</div>
+        <div class="codigo">Fecha ${esc(e.fecha)} · intento ${e._try || 0}${atascado ? ' ⚠️ atascado' : ''}</div>
+      </div>
+      <button class="btn secondary" style="width:auto;padding:6px 10px" onclick="_reenviarUno_('${e.id}','${e._cola}')">↻</button>
+      <button class="btn danger" style="width:auto;padding:6px 10px" onclick="_descartarUno_('${e.id}','${e._cola}')">🗑</button>
+    </div>`;
+  }).join('');
+  const volver = MODO_ACTUAL === 'inventario' ? 'renderSelectorCategoria()' : 'renderGastos()';
+  document.getElementById('app').innerHTML = `
+    <div class="card">
+      <strong>Pendientes de enviar (${cola.length})</strong>
+      <p style="font-size:12px;color:#666;margin:4px 0 8px">Se reintentan solos cada 30s con señal. "Atascado" = lleva ${MAX_INTENTOS_AVISO}+ intentos fallidos — revisa el token o avisa.</p>
+      ${filas}
+      <button class="btn secondary" style="width:100%;margin-top:10px" onclick="${volver}">← Volver</button>
+    </div>`;
+}
+function _reenviarUno_(id, tipoCola) {
+  const clave = tipoCola === 'gasto' ? 'cola_gastos' : 'cola_conteo';
+  const cola = leerSeguro(clave, []);
+  cola.forEach(e => { if (e.id === id) e._try = 0; });
+  guardarSeguro(clave, cola);
+  const proc = tipoCola === 'gasto' ? procesarColaGastos : procesarColaConteo;
+  proc().then(verColaPendiente);
+}
+function _descartarUno_(id, tipoCola) {
+  if (!confirm('¿Descartar este pendiente? Esos datos NO llegarán al ERP y esta acción no se puede deshacer.')) return;
+  const clave = tipoCola === 'gasto' ? 'cola_gastos' : 'cola_conteo';
+  const cola = leerSeguro(clave, []).filter(e => e.id !== id);
+  guardarSeguro(clave, cola);
+  actualizarBadgePendientes();
+  verColaPendiente();
+}
+
+window.addEventListener('online', function () { procesarColaConteo(); procesarColaGastos(); });
+setInterval(function () { procesarColaConteo(); procesarColaGastos(); }, 30000);
+actualizarBadgePendientes();
+
+// Liquid Glass: reflejo de luz que sigue al cursor -- mismo mecanismo que
+// static/js/liquid-glass-theme.js del ERP (1.- SUMETEC-PY-SQL). Delegado
+// desde document, un solo requestAnimationFrame, sin listener por tarjeta.
+// En pantallas tactiles no hay pointermove de "hover" real, así que el
+// efecto simplemente no se activa -- igual que en el ERP.
+(function () {
+  const SELECTOR = 'header, .card, .btn';
+  let activo = null, pendiente = null, ticking = false;
+  function aplicar() {
+    ticking = false;
+    if (!pendiente) return;
+    const { el, x, y } = pendiente;
+    if (activo && activo !== el) activo.classList.remove('sm-liquid-activa');
+    el.style.setProperty('--sm-liquid-x', x + 'px');
+    el.style.setProperty('--sm-liquid-y', y + 'px');
+    el.classList.add('sm-liquid-activa');
+    activo = el;
+  }
+  document.addEventListener('pointermove', function (ev) {
+    if (ev.pointerType === 'touch') return;
+    const el = ev.target.closest(SELECTOR);
+    if (!el) {
+      if (activo) { activo.classList.remove('sm-liquid-activa'); activo = null; }
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    pendiente = { el, x: ev.clientX - r.left, y: ev.clientY - r.top };
+    if (!ticking) { ticking = true; requestAnimationFrame(aplicar); }
+  }, { passive: true });
+  document.addEventListener('pointerleave', function () {
+    if (activo) { activo.classList.remove('sm-liquid-activa'); activo = null; }
+  }, { passive: true, capture: true });
+})();
+</script>
+
+<script src="./version.js"></script>
+<script>
+// VERSION_DEPLOY y VERSION_CODIGO vienen de version.js (los escribe
+// build_deploy.py en cada corrida): la hora real del build y el mismo hash
+// que sw.js usa como nombre de caché ('sumetec-inv-<código>').
+function _mostrarVersionInstalada() {
+  const codigo = (typeof VERSION_CODIGO !== 'undefined' && VERSION_CODIGO) ? VERSION_CODIGO : null;
+  const v = (typeof VERSION_DEPLOY !== 'undefined' && VERSION_DEPLOY)
+    ? new Date(VERSION_DEPLOY).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+    : 'Sin información';
+  const ultima = Number(localStorage.getItem('inv_ultima_actualizacion') || 0);
+  const u = ultima
+    ? new Date(ultima).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' })
+    : 'Aún no se ha detectado una actualización nueva en este dispositivo.';
+  alert(`Act. software: ${codigo ? codigo + ' · ' : ''}${v}\nÚltima actualización: ${u}`);
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then((reg) => {
+    // El navegador solo revisa sw.js por su cuenta cada ~24h -- una PWA
+    // abierta desde el ícono de inicio (retomada de segundo plano, sin
+    // recarga completa) puede tardar horas o días en notar que hay una
+    // versión nueva si no se le pregunta activamente. Mismo patrón que
+    // Remisiones (2.- COTIZADOR/remision.html) y Mis Apps.
+    const _revisar = () => reg.update().catch(() => {});
+    setInterval(_revisar, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') _revisar(); });
+    window.addEventListener('online', _revisar);
+    _revisar();
+
+    let huboControlador = !!navigator.serviceWorker.controller;
+    let recargando = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!huboControlador) { huboControlador = true; return; }
+      localStorage.setItem('inv_ultima_actualizacion', String(Date.now()));
+      // Recarga sola cuando toma control un SW nuevo -- salvo que haya un
+      // campo de texto con algo escrito, para no borrar un conteo a medias.
+      if (recargando) return;
+      const activo = document.activeElement;
+      const escribiendo = activo && (activo.tagName === 'INPUT' || activo.tagName === 'TEXTAREA') && activo.value;
+      if (escribiendo) return;
+      recargando = true;
+      location.reload();
+    });
+  }).catch(e => console.warn('SW:', e));
+}
+</script>
+</body>
+</html>

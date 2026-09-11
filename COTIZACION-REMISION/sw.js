@@ -1,4 +1,4 @@
-const CACHE = 'sumetec-rem-70bc1900eb';
+const CACHE = 'sumetec-rem-b37583850d';
 const PREFIJO = 'sumetec-rem-';
 // Assets pesados (jsPDF ~400 KB) en su PROPIA caché, versionada aparte del shell.
 // Antes vivían dentro de CACHE: como ese nombre es un hash del shell, cambiar una
@@ -36,14 +36,36 @@ const ASSETS = [
 // explícitamente, sin perder la tolerancia a fallos de CDN de arriba.
 async function precachearShell() {
   const cache = await caches.open(CACHE);
+  let faltante = false;
   await Promise.allSettled(STATIC.map(async (url) => {
     try {
       const resp = await fetch(url, { cache: 'reload' });
-      await cache.put(url, resp);
+      // Hallazgo 4 (auditoría Cotizador, 2026-09-10): fetch() NO lanza en un 404/500 --
+      // solo resuelve con ok:false. Sin este chequeo, un archivo nuevo (sync_audit.js,
+      // version.js) que todavía no existiera en el hosting en el momento exacto del
+      // deploy se guardaba en caché COMO SI fuera el archivo real, y ya no se
+      // corregía solo hasta el próximo cambio de versión del shell.
+      if (resp.ok) {
+        await cache.put(url, resp);
+      } else {
+        faltante = true;
+        console.warn('SW: respuesta no-ok al precachear (no se guarda)', url, resp.status);
+      }
     } catch (err) {
+      faltante = true;
       console.warn('SW: no se pudo precachear', url, err);
     }
   }));
+  // M-12 (auditoría de robustez, 2026-09-10): si faltó CUALQUIER pieza del shell,
+  // la instalación FALLA a propósito. Antes solo se anotaba en el log y el SW se
+  // activaba igual: con activate() ya corriendo se borraban las cachés anteriores,
+  // así que el celular se quedaba con una versión nueva incompleta y sin la vieja
+  // a la que volver. Al lanzar aquí, install() se rechaza, este SW se descarta y el
+  // anterior sigue mandando intacto; el navegador reintenta en la próxima carga.
+  if (faltante) {
+    console.warn('SW: precacheo del shell incompleto -- se conserva la versión anterior');
+    throw new Error('precacheo del shell incompleto');
+  }
 }
 
 // Punto 7 del checklist: los assets pesados se bajan SOLO si de verdad faltan, y
@@ -60,9 +82,14 @@ async function precachearAssets() {
   }));
 }
 
+// M-12: el shell es indispensable y su fallo ABORTA la instalación (ver arriba).
+// Los assets pesados NO: precachearAssets() se traga sus errores a propósito, para
+// que un CDN caído no impida instalar una versión nueva del shell — jsPDF se baja
+// después, en el primer fetch que lo pida.
 self.addEventListener('install', e => {
   e.waitUntil(
-    Promise.all([precachearShell(), precachearAssets()])
+    precachearShell()
+      .then(() => precachearAssets())
       .then(() => self.skipWaiting())
   );
 });

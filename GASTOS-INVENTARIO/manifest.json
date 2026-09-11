@@ -1,0 +1,16 @@
+{
+  "name": "SUMETEC Gastos / Inventario",
+  "short_name": "Gastos",
+  "start_url": "./gastos-inventario.html",
+  "display": "standalone",
+  "background_color": "#023561",
+  "theme_color": "#023561",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cpolygon points='30,2 56,16 56,44 30,58 4,44 4,16' fill='%2376B82A'/%3E%3Ctext x='30' y='38' text-anchor='middle' fill='white' font-family='Arial' font-weight='800' font-size='22'%3E%24%3C/text%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

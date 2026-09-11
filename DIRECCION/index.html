@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#102a43">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="estilos.css">
+  <title>SUMETEC Dirección</title>
+</head>
+<body>
+  <header>
+    <strong>SUMETEC Dirección</strong>
+    <span id="estado">Sin conexión</span>
+    <span id="badgeVersion" onclick="_mostrarVersionInstalada()" style="cursor:pointer" title="Ver actualización de software">ℹ️</span>
+  </header>
+  <nav>
+    <button data-vista="resumen">Resumen</button>
+    <button data-vista="compras">Compras</button>
+    <button data-vista="caja">Caja</button>
+    <button data-vista="corte">Corte</button>
+  </nav>
+  <main id="app"></main>
+
+  <dialog id="vincular">
+    <form method="dialog">
+      <h2>Vincular este teléfono</h2>
+      <input id="url" placeholder="URL de Drive">
+      <input id="codigo" inputmode="numeric" placeholder="Código de 6 dígitos">
+      <input id="pin" type="password" inputmode="numeric" placeholder="PIN privado">
+      <button id="enlazar" value="default">Vincular</button>
+    </form>
+  </dialog>
+
+  <dialog id="pin-modal">
+    <form method="dialog">
+      <h2>PIN privado</h2>
+      <input id="pin-modal-input" type="password" inputmode="numeric" autocomplete="off" required>
+      <p id="pin-modal-error" role="alert"></p>
+      <button value="cancel" formnovalidate>Cancelar</button>
+      <button value="ok">Continuar</button>
+    </form>
+  </dialog>
+
+  <script src="version.js"></script>
+  <script src="seguridad.js"></script>
+  <script src="caja.js"></script>
+  <script src="compras.js"></script>
+  <script src="corte.js"></script>
+  <script src="dashboard.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
