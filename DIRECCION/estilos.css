@@ -1,10 +1,190 @@
-:root{font-family:system-ui;background:#f4f7fa;color:#102a43}body{margin:0;max-width:720px;margin:auto;padding:18px}header{display:flex;justify-content:space-between;padding:12px;background:#102a43;color:white;border-radius:12px}nav{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap}button{border:0;border-radius:9px;padding:10px 14px;background:#d9e2ec;color:#102a43;font-weight:600}main{background:white;border-radius:12px;padding:20px;min-height:180px}
- .metricas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.metricas article,.pendientes{padding:.8rem;border:1px solid #35536d;border-radius:.5rem}.metricas strong{display:block;font-size:1.2rem}.oficial{color:#8dd3ff}.pendientes{margin-top:1rem;background:#172b3b}
-dialog{border:0;border-radius:12px;padding:20px;max-width:320px;width:90%}dialog::backdrop{background:rgba(16,42,67,.5)}dialog input{width:100%;box-sizing:border-box;margin:8px 0;padding:10px;border:1px solid #d9e2ec;border-radius:8px;font-size:1rem}#pin-modal-error{color:#c0392b;min-height:1.2em;margin:0}
-#denominaciones-corte{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;border:1px solid #d9e2ec;border-radius:8px;padding:.7rem}.denominacion{display:flex;flex-direction:column;font-size:.85rem;gap:.2rem}.denominacion input{width:100%;box-sizing:border-box;padding:6px;border:1px solid #d9e2ec;border-radius:6px}
-/* OCR de tickets (2026-09-10, estandarizado con Gastos): campo que la IA llenó, desaparece al editarlo. */
-.ia-tocado{background:#FFF7DE;border-color:#E8C547}
-/* Propuesta 3 (2026-09-10): historial reciente de compras en la pantalla de Compras. */
-.historial-compras{list-style:none;padding:0;margin:.5rem 0 0;display:flex;flex-direction:column;gap:.5rem}.historial-item{border:1px solid #d9e2ec;border-radius:8px;padding:.6rem .8rem;display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center}.historial-item .proveedor{font-weight:600}.historial-item .badge{background:#d9e2ec;border-radius:6px;padding:.15rem .5rem;font-size:.85rem}.historial-item .fecha{color:#627d98;width:100%}.leyenda{color:#627d98;font-size:.85rem;margin:.3rem 0}
-/* Propuesta 6 (2026-09-10): prioridades del ERP en el Resumen. */
-.prioridades{list-style:none;padding:0;margin:.5rem 0 0;display:flex;flex-direction:column;gap:.5rem}.prioridades li{border:1px solid #35536d;border-left-width:4px;border-radius:.5rem;padding:.6rem .8rem;background:#172b3b}.prioridades li.nivel-danger{border-left-color:#c0392b}.prioridades li.nivel-warning{border-left-color:#e0a800}.prioridades li.nivel-info,.prioridades li.nivel-secondary{border-left-color:#8dd3ff}.prioridades .detalle,.prioridades .pantalla{display:block;font-size:.85rem;color:#8dd3ff}.sin-prioridades{color:#627d98}
+/* estilos.css -- SOLO lo específico de Dirección (layout, navegación, cajón
+   de billetes, historial, prioridades). Los colores, la letra, los botones,
+   campos y tarjetas base vienen de sumetec-tema.css (generado del ERP por
+   16.- IDENTIDAD-NEGOCIO/generar_tema.py -- no editar ese archivo a mano).
+   Todo lo de aquí usa los tokens --sm-* del tema; nunca un color propio. */
+
+body { max-width: 720px; margin: 0 auto; padding: 0 0 32px; }
+
+.hoja { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Menú de secciones ── */
+.sm-nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-nav {
+  flex: 1 1 auto;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding: 8px 10px;
+  font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--sm-th-text);
+  background: var(--sm-control-fondo);
+  border: 1px solid var(--sm-glass-superficie-borde);
+  border-radius: var(--sm-r-sm);
+  cursor: pointer;
+  transition: background-color var(--sm-motion-standard) var(--sm-motion-ease),
+              color var(--sm-motion-standard) var(--sm-motion-ease);
+}
+.btn-nav.activo { color: white; background: var(--sm-accent); border-color: var(--sm-accent); }
+:root[data-tema="oscuro"] .btn-nav.activo { color: var(--sm-bg); }
+
+.fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ── Caja: lista de movimientos de hoy (renderMovimientosCaja, caja.js) ── */
+#lista-caja-cuerpo ul {
+  list-style: none; padding: 0; margin: 10px 0 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+#lista-caja-cuerpo li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px;
+  padding: 8px 10px; font-size: 13px;
+  border: 1px solid var(--sm-line); border-radius: var(--sm-r-sm);
+}
+#lista-caja-cuerpo li > span:first-child { font-weight: 700; font-variant-numeric: tabular-nums; }
+#lista-caja-cuerpo button.anular {
+  margin-left: auto; min-height: 32px; padding: 4px 10px;
+  font: inherit; font-size: 12px; font-weight: 600;
+  color: var(--sm-accent); background: transparent;
+  border: 1px solid var(--sm-border-soft); border-radius: var(--sm-r-sm);
+  cursor: pointer;
+}
+
+/* ── Resumen ── */
+.metricas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.metricas .card-body { padding: 12px 14px; }
+.metricas .num { text-align: left; font-size: 20px; font-weight: 700; }
+.oficial { color: var(--sm-muted); font-size: 12.5px; }
+
+/* Bug real (visto en el CSS, 2026-09-11): esta sección y "Qué necesita tu
+   atención" usaban un fondo oscuro fijo (#172b3b) con texto heredado casi
+   del mismo tono (#102a43) -- texto oscuro sobre fondo oscuro, casi
+   ilegible en cualquier tema. Con .card del tema el fondo/tinta ya voltean
+   solos entre día y noche. */
+.pendientes .card-body p { margin: 0 0 4px; }
+.pendientes small { color: var(--sm-muted); }
+
+.prioridades-erp h2 { margin-bottom: 8px; }
+.prioridades { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .5rem; }
+.prioridades li {
+  border: 1px solid var(--sm-line);
+  border-left-width: 4px;
+  border-radius: var(--sm-r-sm);
+  padding: .6rem .8rem;
+  background: var(--sm-glass-tarjeta-fondo);
+}
+.prioridades li.nivel-danger { border-left-color: var(--sm-chart-4); }
+.prioridades li.nivel-warning { border-left-color: var(--sm-aviso); }
+.prioridades li.nivel-info, .prioridades li.nivel-secondary { border-left-color: var(--sm-accent); }
+.prioridades .detalle, .prioridades .pantalla { display: block; font-size: .85rem; color: var(--sm-muted); }
+.sin-prioridades { color: var(--sm-muted); }
+
+/* ── Corte: "El cajón" (F2 del plan de diseño, 2026-09-11) ──
+   Único lugar de toda la app con colores propios, fuera del tema del ERP --
+   decisión explícita de Miguel (PLAN_DISENO_TEMA_ERP §1): son los colores
+   reales de los billetes/monedas mexicanos, no de marca. La denominación
+   siempre va escrita en texto grande junto al color -- el color nunca es la
+   única señal (persona con daltonismo la sigue leyendo igual). */
+:root {
+  --billete-1000: #8e5fd1;  /* lila */
+  --billete-500: #2f6fd6;   /* azul */
+  --billete-200: #1f8a2d;   /* verde */
+  --billete-100: #c0392b;   /* rojo */
+  --billete-50: #c0298a;    /* magenta */
+  --billete-20: #17a2b8;    /* turquesa */
+  --billete-10: #9aa5ad;    /* plata */
+  --billete-5: #b6c0c8;     /* plata clara */
+  --billete-2: #b08d57;     /* bronce */
+  --billete-0-5: #cdb37a;   /* bronce claro */
+}
+
+#denominaciones-corte.billetero {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem;
+  border: 0; padding: 0; margin: 0; list-style: none;
+}
+.denominacion {
+  display: flex; align-items: stretch; gap: 2px;
+  border-radius: var(--sm-r-sm); overflow: hidden;
+  border: 1px solid var(--sm-line);
+  border-top: 3px solid var(--color-billete, var(--sm-line));
+  background: color-mix(in srgb, var(--color-billete, var(--sm-line)) 10%, var(--sm-control-fondo));
+}
+.billete-boton {
+  flex: 0 0 30px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 44px;
+  font-size: 18px; font-weight: 700; line-height: 1;
+  color: white; background: var(--color-billete, var(--sm-muted));
+  border: none; cursor: pointer;
+}
+.billete-boton:active { filter: brightness(.88); }
+.billete-cuerpo {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; padding: 4px 2px;
+}
+.billete-etiqueta { font-size: .8rem; font-weight: 700; color: var(--sm-ink); }
+.denominacion input.cant-denominacion {
+  width: 100%; box-sizing: border-box; text-align: center;
+  font: inherit; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--sm-control-tinta); background: var(--sm-control-fondo);
+  border: 1px solid var(--sm-border-soft); border-radius: var(--sm-r-xs);
+  padding: 2px;
+}
+@media (pointer: coarse) { .denominacion input.cant-denominacion { font-size: 16px; } }
+
+/* La barra se llena con los mismos colores, proporcional a cuánto pesa cada
+   denominación en el total contado (_segmentosEfectivo, corte.js). */
+.barra-efectivo {
+  display: flex; height: 10px; border-radius: var(--sm-r-pill); overflow: hidden;
+  background: var(--sm-line);
+}
+.barra-efectivo span { height: 100%; transition: width var(--sm-motion-standard) var(--sm-motion-ease); }
+
+/* ── Compra: dato leído por la IA ── */
+.ia-tocado { background: color-mix(in srgb, var(--sm-aviso) 16%, var(--sm-control-fondo)); border-color: var(--sm-aviso) !important; }
+
+/* ── Compras: líneas y pagos ── */
+#lineas-compra, #pagos-compra { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 8px; }
+#lineas-compra li, #pagos-compra li { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; }
+#lineas-compra li { grid-template-columns: 1fr 2fr 1fr 1fr auto; }
+#lineas-compra input, #pagos-compra input, #pagos-compra select { min-width: 0; }
+
+/* ── Compras: historial reciente ── */
+.historial-compras { list-style: none; padding: 0; margin: .5rem 0 0; display: flex; flex-direction: column; gap: .5rem; }
+.historial-item {
+  border: 1px solid var(--sm-line); border-radius: var(--sm-r-sm); padding: .6rem .8rem;
+  display: flex; flex-wrap: wrap; gap: .4rem .8rem; align-items: center;
+}
+.historial-item .proveedor { font-weight: 600; }
+.historial-item .fecha { color: var(--sm-muted); width: 100%; font-size: .85rem; }
+.leyenda { color: var(--sm-muted); font-size: .85rem; margin: .3rem 0; }
+.vacio { color: var(--sm-muted); }
+
+#pin-modal h2 { text-align: center; }
+
+/* ── Mensaje flotante (toast): el tema le da el vidrio, aquí la posición ── */
+#toast { position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 1000; display: none; max-width: 688px; margin: 0 auto; }
+#toast.show { display: block; }
+
+/* ── Inventario (F4 del plan de diseño, 2026-09-11) ── */
+.fila-producto {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--sm-line);
+}
+.fila-producto:last-child { border-bottom: 0; }
+.fila-producto .info { flex: 1; min-width: 0; }
+.fila-producto .codigo { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--sm-muted); }
+.fila-producto .btn { min-height: 40px; padding: 6px 10px; }
+.inv-cantidad { width: 84px; flex: 0 0 84px; text-align: right; }
+.inv-cat { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+.inv-cat-todo { font-weight: 600; border-bottom: 1px solid var(--sm-line); margin-bottom: 2px; padding: 8px 0; }
+.inv-sello { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+.inv-sello .btn { flex-shrink: 0; min-height: 36px; padding: 4px 10px; font-size: 12px; }
+.inv-acciones { display: grid; gap: 8px; }
+.inv-teorico { cursor: pointer; text-decoration: underline dotted; }
+.inv-nuevo { color: var(--sm-accent); font-size: 11px; font-weight: 700; }
+/* Pegada debajo de la barra de arriba (.sm-barra mide 56px). */
+.inv-barra {
+  position: sticky; top: 56px; z-index: 5;
+  padding: 8px 14px; font-size: 12px; color: var(--sm-muted);
+  background: var(--sm-surface); border: 1px solid var(--sm-line);
+  border-radius: var(--sm-r-sm); box-shadow: var(--sm-shadow-sereno);
+}

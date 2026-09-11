@@ -1,5 +1,5 @@
 {
-  "name": "SUMETEC Gastos / Inventario",
+  "name": "SUMETEC Gastos",
   "short_name": "Gastos",
   "start_url": "./gastos-inventario.html",
   "display": "standalone",

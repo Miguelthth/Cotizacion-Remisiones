@@ -28,28 +28,28 @@ function validarMovimientoDireccion(d) {
 
 function formularioCajaDireccion() {
   return `<h1>Caja</h1>
-<p>Movimientos físicos del cajón. No son ventas ni gastos.</p>
-<form id="form-caja">
-  <label>Movimiento
-    <select name="clase">${CLASES_CAJA_DIRECCION.map(x => `<option>${x}</option>`).join('')}</select>
+<p class="text-muted">Movimientos físicos del cajón. No son ventas ni gastos.</p>
+<form id="form-caja" class="card"><div class="card-body" style="display:grid;gap:10px">
+  <label class="form-label" for="caja-clase">Movimiento
+    <select id="caja-clase" name="clase" class="form-select">${CLASES_CAJA_DIRECCION.map(x => `<option>${x}</option>`).join('')}</select>
   </label>
-  <label>Fecha<input name="fecha" type="date" required></label>
-  <label>Monto<input name="monto" type="number" min="0.01" step="0.01" required></label>
-  <label>Método
-    <select name="metodo"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>TARJETA</option></select>
+  <label class="form-label" for="caja-fecha">Fecha<input id="caja-fecha" class="form-control" name="fecha" type="date" required></label>
+  <label class="form-label" for="caja-monto">Monto<input id="caja-monto" class="form-control" name="monto" type="number" min="0.01" step="0.01" required></label>
+  <label class="form-label" for="caja-metodo">Método
+    <select id="caja-metodo" name="metodo" class="form-select"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>TARJETA</option></select>
   </label>
-  <label>Socio (aporte/retiro)<input name="cuentaSocio" value="JOSE MIGUEL"></label>
-  <label>Referencia (si aplica)<input name="referencia"></label>
-  <label>Concepto / explicación<textarea name="concepto" required></textarea></label>
-  <button>Guardar movimiento</button>
-</form>
-<p id="resultado-caja" role="status"></p>
-<button id="enviar-movimientos" type="button">Enviar movimientos pendientes</button>
-<section id="lista-caja">
+  <label class="form-label" for="caja-socio">Socio (aporte/retiro)<input id="caja-socio" class="form-control" name="cuentaSocio" value="JOSE MIGUEL"></label>
+  <label class="form-label" for="caja-referencia">Referencia (si aplica)<input id="caja-referencia" class="form-control" name="referencia"></label>
+  <label class="form-label" for="caja-concepto">Concepto / explicación<textarea id="caja-concepto" class="form-control" name="concepto" required></textarea></label>
+  <button class="btn btn-success btn-bloque"><i class="bi bi-check-circle"></i> Guardar movimiento</button>
+</div></form>
+<p id="resultado-caja" class="text-muted" role="status"></p>
+<button id="enviar-movimientos" type="button" class="btn btn-primary btn-bloque"><i class="bi bi-cloud-arrow-up"></i> Enviar movimientos pendientes</button>
+<section id="lista-caja" class="card"><div id="lista-caja-cuerpo" class="card-body">
   <h2>Movimientos de hoy</h2>
-  <p>Toca "Ver movimientos" para consultarlos.</p>
-  <button id="ver-movimientos" type="button">Ver movimientos</button>
-</section>`;
+  <p class="text-muted">Toca "Ver movimientos" para consultarlos.</p>
+  <button id="ver-movimientos" type="button" class="btn btn-outline-secondary">Ver movimientos</button>
+</div></section>`;
 }
 
 // Hallazgo DIR-K01 (auditoría de ecosistema 2026-09-09): un movimiento
@@ -228,7 +228,7 @@ function activarCajaDireccion() {
     }
   };
 
-  const lista = document.querySelector('#lista-caja');
+  const lista = document.querySelector('#lista-caja-cuerpo');
 
   async function refrescarLista(pin) {
     try {

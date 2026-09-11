@@ -152,20 +152,20 @@ function _renderHistorialComprasDireccion_() {
 
 function _filaLineaCompra() {
   return `<li class="linea">
-    <input placeholder="Código" class="codigo">
-    <input placeholder="Descripción" class="descripcion">
-    <input placeholder="Cantidad" type="number" min="0" step="0.01" class="cantidad">
-    <input placeholder="Costo unitario" type="number" min="0" step="0.01" class="costo">
-    <button type="button" class="quitar">Quitar</button>
+    <input placeholder="Código" class="codigo form-control mono">
+    <input placeholder="Descripción" class="descripcion form-control">
+    <input placeholder="Cantidad" type="number" min="0" step="0.01" class="cantidad form-control">
+    <input placeholder="Costo unitario" type="number" min="0" step="0.01" class="costo form-control">
+    <button type="button" class="quitar btn btn-outline-secondary"><i class="bi bi-x-lg"></i></button>
   </li>`;
 }
 
 function _filaPagoCompra() {
   return `<li class="pago">
-    <input placeholder="Fecha" type="date" class="fecha">
-    <input placeholder="Monto" type="number" min="0.01" step="0.01" class="monto">
-    <select class="metodo"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>TARJETA</option><option>CHEQUE</option></select>
-    <button type="button" class="quitar">Quitar</button>
+    <input placeholder="Fecha" type="date" class="fecha form-control">
+    <input placeholder="Monto" type="number" min="0.01" step="0.01" class="monto form-control">
+    <select class="metodo form-select"><option>EFECTIVO</option><option>TRANSFERENCIA</option><option>TARJETA</option><option>CHEQUE</option></select>
+    <button type="button" class="quitar btn btn-outline-secondary"><i class="bi bi-x-lg"></i></button>
   </li>`;
 }
 
@@ -189,46 +189,49 @@ function _leerPagosCompra(ul) {
 
 function formularioComprasDireccion() {
   return `<h1>Compras</h1>
-<p>Queda "Pendiente de ERP" hasta que se revise e importe -- no mueve el stock teórico.</p>
-<form id="form-compra">
-  <label>Proveedor<input name="proveedor" required></label>
-  <label>Fecha<input name="fecha" type="date" required></label>
-  <label>Folio del proveedor<input name="folio"></label>
+<p class="text-muted">Queda "Pendiente de ERP" hasta que se revise e importe -- no mueve el stock teórico.</p>
+<form id="form-compra" class="card"><div class="card-body" style="display:grid;gap:10px">
+  <label class="form-label" for="compra-proveedor">Proveedor<input id="compra-proveedor" class="form-control" name="proveedor" required></label>
+  <label class="form-label" for="compra-fecha">Fecha<input id="compra-fecha" class="form-control" name="fecha" type="date" required></label>
+  <label class="form-label" for="compra-folio">Folio del proveedor<input id="compra-folio" class="form-control mono" name="folio"></label>
 
-  <label>📷 Foto del ticket (opcional)<input type="file" id="compra_foto" accept="image/*" capture="environment" onchange="_onFotoCompraElegida_()"></label>
-  <img id="compraFotoPreview" style="display:none;max-height:160px;border-radius:6px;margin-top:8px;object-fit:contain">
-  <button id="compraBtnOcr" type="button" style="width:100%;margin-top:8px;display:none" onclick="_leerTicketCompraConIA_()">🔍 Leer ticket</button>
-  <div id="compraOcrEstado" style="font-size:12px;color:#666;margin-top:4px"></div>
+  <label class="form-label" for="compra_foto"><i class="bi bi-camera"></i> Foto del ticket (opcional)<input type="file" id="compra_foto" class="form-control" accept="image/*" capture="environment" onchange="_onFotoCompraElegida_()"></label>
+  <img id="compraFotoPreview" style="display:none;max-height:160px;border-radius:var(--sm-r-sm);margin-top:8px;object-fit:contain">
+  <!-- Sin ícono: _onFotoCompraElegida_/_leerTicketCompraConIA_ (abajo) fijan
+       el texto completo del botón con .textContent -- un ícono aquí
+       desaparecería en cuanto cualquiera de esas dos lo tocara. -->
+  <button id="compraBtnOcr" type="button" class="btn btn-primary" style="width:100%;margin-top:8px;display:none" onclick="_leerTicketCompraConIA_()">🔍 Leer ticket</button>
+  <div id="compraOcrEstado" class="text-muted" style="font-size:12px;margin-top:4px"></div>
 
-  <label>Evidencia
-    <select name="evidencia">${EVIDENCIAS_COMPRA_DIRECCION.map(x => `<option>${x}</option>`).join('')}</select>
+  <label class="form-label" for="compra-evidencia">Evidencia
+    <select id="compra-evidencia" name="evidencia" class="form-select">${EVIDENCIAS_COMPRA_DIRECCION.map(x => `<option>${x}</option>`).join('')}</select>
   </label>
-  <label>Situación de factura
-    <select name="situacionFactura">${SITUACIONES_FACTURA_DIRECCION.map(x => `<option>${x}</option>`).join('')}</select>
+  <label class="form-label" for="compra-situacion">Situación de factura
+    <select id="compra-situacion" name="situacionFactura" class="form-select">${SITUACIONES_FACTURA_DIRECCION.map(x => `<option>${x}</option>`).join('')}</select>
   </label>
-  <label>UUID CFDI (si ya está facturado)<input name="uuidCfdi"></label>
-  <label>Subtotal<input name="subtotal" type="number" min="0" step="0.01" required></label>
-  <label>IVA<input name="iva" type="number" min="0" step="0.01" value="0"></label>
-  <label>Total<input name="total" type="number" min="0.01" step="0.01" required></label>
-  <label>Condición<select name="condicion"><option>CREDITO</option><option>CONTADO</option></select></label>
+  <label class="form-label" for="compra-uuid">UUID CFDI (si ya está facturado)<input id="compra-uuid" class="form-control mono" name="uuidCfdi"></label>
+  <label class="form-label" for="compra-subtotal">Subtotal<input id="compra-subtotal" class="form-control" name="subtotal" type="number" min="0" step="0.01" required></label>
+  <label class="form-label" for="compra-iva">IVA<input id="compra-iva" class="form-control" name="iva" type="number" min="0" step="0.01" value="0"></label>
+  <label class="form-label" for="compra-total">Total<input id="compra-total" class="form-control" name="total" type="number" min="0.01" step="0.01" required></label>
+  <label class="form-label" for="compra-condicion">Condición<select id="compra-condicion" name="condicion" class="form-select"><option>CREDITO</option><option>CONTADO</option></select></label>
   <fieldset>
-    <legend>Líneas (opcional, se revisan en el ERP)</legend>
+    <legend class="form-label">Líneas (opcional, se revisan en el ERP)</legend>
     <ul id="lineas-compra"></ul>
-    <button type="button" id="agregar-linea">Agregar línea</button>
+    <button type="button" id="agregar-linea" class="btn btn-outline-secondary"><i class="bi bi-plus-lg"></i> Agregar línea</button>
   </fieldset>
   <fieldset>
-    <legend>Pagos (si ya se pagó algo desde el cajón)</legend>
+    <legend class="form-label">Pagos (si ya se pagó algo desde el cajón)</legend>
     <ul id="pagos-compra"></ul>
-    <button type="button" id="agregar-pago">Agregar pago</button>
+    <button type="button" id="agregar-pago" class="btn btn-outline-secondary"><i class="bi bi-plus-lg"></i> Agregar pago</button>
   </fieldset>
-  <button>Guardar compra</button>
-</form>
-<p id="resultado-compra" role="status"></p>
-<button id="enviar-compras" type="button">Enviar compras pendientes</button>
-<section aria-label="Historial reciente de compras">
+  <button class="btn btn-success btn-bloque"><i class="bi bi-check-circle"></i> Guardar compra</button>
+</div></form>
+<p id="resultado-compra" class="text-muted" role="status"></p>
+<button id="enviar-compras" type="button" class="btn btn-primary btn-bloque"><i class="bi bi-cloud-arrow-up"></i> Enviar compras pendientes</button>
+<section aria-label="Historial reciente de compras" class="card"><div class="card-body">
   <h2>Historial reciente</h2>
   <div id="historial-compras"></div>
-</section>`;
+</div></section>`;
 }
 
 function activarComprasDireccion() {
@@ -239,7 +242,10 @@ function activarComprasDireccion() {
 
   const lineas = document.querySelector('#lineas-compra');
   const pagos = document.querySelector('#pagos-compra');
-  const quitar = e => { if (e.target.classList.contains('quitar')) e.target.closest('li').remove(); };
+  // closest('.quitar'), no e.target.classList: el botón ahora lleva un ícono
+  // adentro (<i class="bi ...">) -- un toque justo sobre el ícono pone el
+  // ícono como e.target, no el botón, y classList.contains('quitar') fallaba.
+  const quitar = e => { const b = e.target.closest('.quitar'); if (b) b.closest('li').remove(); };
 
   document.querySelector('#agregar-linea').onclick = () => lineas.insertAdjacentHTML('beforeend', _filaLineaCompra());
   document.querySelector('#agregar-pago').onclick = () => pagos.insertAdjacentHTML('beforeend', _filaPagoCompra());

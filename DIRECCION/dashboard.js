@@ -16,27 +16,29 @@ function _htmlPrioridadesDireccion_(prioridades) {
 }
 
 function renderDashboardDireccion(s) {
-  if (!s) return '<h1>Resumen</h1><p>Aún no hay una fotografía oficial publicada por el ERP.</p>';
+  if (!s) return '<h1>Resumen</h1><p class="text-muted">Aún no hay una fotografía oficial publicada por el ERP.</p>';
   const p = s.pendienteIntegrar || {};
   const fecha = String(s.generadoEn || '').replace('T', ' ');
   return `<h1>Resumen</h1>
 <p class="oficial">Oficial al ${fecha}</p>
 <section class="metricas">
-  <article>Ventas<strong>${_dineroDireccion(s.ventas)}</strong></article>
-  <article>Cobrado<strong>${_dineroDireccion(s.cobrado)}</strong></article>
-  <article>Utilidad neta<strong>${_dineroDireccion(s.utilidadNeta)}</strong></article>
-  <article>Gastos<strong>${_dineroDireccion(s.gastos)}</strong></article>
-  <article>Compras<strong>${_dineroDireccion(s.compras)}</strong></article>
-  <article>Cartera<strong>${_dineroDireccion(s.cartera)}</strong></article>
+  <article class="card"><div class="card-body">Ventas<strong class="num">${_dineroDireccion(s.ventas)}</strong></div></article>
+  <article class="card"><div class="card-body">Cobrado<strong class="num">${_dineroDireccion(s.cobrado)}</strong></div></article>
+  <article class="card"><div class="card-body">Utilidad neta<strong class="num">${_dineroDireccion(s.utilidadNeta)}</strong></div></article>
+  <article class="card"><div class="card-body">Gastos<strong class="num">${_dineroDireccion(s.gastos)}</strong></div></article>
+  <article class="card"><div class="card-body">Compras<strong class="num">${_dineroDireccion(s.compras)}</strong></div></article>
+  <article class="card"><div class="card-body">Cartera<strong class="num">${_dineroDireccion(s.cartera)}</strong></div></article>
 </section>
 <section class="prioridades-erp">
   <h2>Qué necesita tu atención</h2>
   ${_htmlPrioridadesDireccion_(s.prioridades)}
 </section>
-<section class="pendientes">
-  <h2>Pendiente de integrar</h2>
-  <p>${Number(p.compras || 0)} compras · ${Number(p.movimientos || 0)} movimientos · ${Number(p.cierres || 0)} cortes</p>
-  <small>No se suman a las cifras oficiales.</small>
+<section class="pendientes card">
+  <div class="card-body">
+    <h2>Pendiente de integrar</h2>
+    <p>${Number(p.compras || 0)} compras · ${Number(p.movimientos || 0)} movimientos · ${Number(p.cierres || 0)} cortes</p>
+    <small>No se suman a las cifras oficiales.</small>
+  </div>
 </section>`;
 }
 
@@ -61,12 +63,12 @@ async function cargarDashboardDireccion(pin) {
     body: JSON.stringify({ tipo: 'dashboard_snapshot', token })
   }).then(x => x.json());
   if (!r.ok) throw Error(r.error || 'No se pudo consultar el resumen');
-  // Propuesta 3 (mejoras ecosistema 2026-09-10): compras.js necesita este
-  // mismo snapshot (comprasRecientes) para su historial, sin volver a
-  // pedirle PIN al usuario -- se cachea aquí, la única pantalla que hoy lo
-  // descarga. Si Compras se abre sin haber pasado antes por Resumen, lee
-  // este caché (puede no existir todavía, o estar viejo -- eso lo resuelve
-  // _historialComprasDireccion_ mostrando la fecha real del snapshot).
+  // Propuesta 3 (mejoras ecosistema 2026-09-10). Hasta el 2026-09-11 esto lo
+  // leía compras.js para su historial reciente -- desde F3 (Compras salió
+  // como app propia) ya no aplica: Compras pide su PROPIO dashboard_snapshot
+  // (ver 18.- SUMETEC COMPRAS/compras.js::_actualizarSnapshotCompras_), otro
+  // origen, otro localStorage. Se conserva el cacheo aquí por si algo más
+  // dentro de Dirección lo llega a necesitar; hoy no lo lee nadie más.
   try {
     localStorage.setItem('sumetec_direccion_snapshot_cache',
       JSON.stringify({ ts: new Date().toISOString(), snapshot: r.snapshot }));
@@ -80,6 +82,7 @@ async function cargarDashboardDireccion(pin) {
     if (rc && rc.ok && rc.datos) {
       localStorage.setItem('sumetec_direccion_config_cache', JSON.stringify({ ts: rc.ts || '', datos: rc.datos }));
       _aplicarConfigDireccionPublicada_(rc.datos.DIRECCION);
+      if (typeof _aplicarConfigInventarioPublicada_ === 'function') _aplicarConfigInventarioPublicada_(rc.datos.GASTOS);
     }
   }).catch(() => {});
   return r.snapshot;

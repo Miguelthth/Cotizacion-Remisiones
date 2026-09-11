@@ -1,5 +1,8 @@
+// 'compras' salió de aquí (F3 del plan de diseño, 2026-09-11): Compras es
+// ahora su propia app (18.- SUMETEC COMPRAS/), con su propia cola. Ver la
+// nota en corte.js sobre lo que eso cambia en el aviso de "pendientes sin
+// enviar" antes de cerrar un corte.
 const COLAS = {
-  compras: 'sumetec_direccion_cola_compras',
   movimientos: 'sumetec_direccion_cola_movimientos',
   cortes: 'sumetec_direccion_cola_cortes'
 };
@@ -8,7 +11,11 @@ const $ = s => document.querySelector(s);
 const leer = k => JSON.parse(localStorage.getItem(k) || '[]');
 
 function estado() {
-  const pendientes = Object.values(COLAS).reduce((total, k) => total + leer(k).length, 0);
+  // Los conteos de Inventario se suman al chip pero NO viven en COLAS: un
+  // conteo sin enviar no mueve efectivo y no debe bloquear el corte (ver
+  // corte.js::_pendientesSinEnviarDireccion_ e inventario.js).
+  const pendientes = Object.values(COLAS).reduce((total, k) => total + leer(k).length, 0) +
+    (typeof _pendientesInventario_ === 'function' ? _pendientesInventario_() : 0);
   $('#estado').textContent = pendientes
     ? `${pendientes} pendientes`
     : (navigator.onLine ? 'Al día' : 'Sin conexión');
@@ -23,11 +30,14 @@ function vistaActivaDireccion() { return _vistaActivaDireccion; }
 
 function vista(nombre) {
   _vistaActivaDireccion = nombre;
+  document.querySelectorAll('[data-vista]').forEach(b => {
+    b.classList.toggle('activo', b.dataset.vista === nombre);
+  });
   const vistas = {
     caja: formularioCajaDireccion,
     corte: formularioCorteDireccion,
-    compras: formularioComprasDireccion,
-    resumen: () => '<h1>Resumen</h1><p>Cargando fotografía oficial…</p>'
+    resumen: () => '<h1>Resumen</h1><p class="text-muted">Cargando fotografía oficial…</p>',
+    inventario: () => '<h1>Inventario</h1><p class="text-muted">Cargando catálogo…</p>'
   };
   const generador = vistas[nombre];
   $('#app').innerHTML = generador
@@ -36,8 +46,8 @@ function vista(nombre) {
 
   if (nombre === 'caja') activarCajaDireccion();
   if (nombre === 'corte') activarCorteDireccion();
-  if (nombre === 'compras') activarComprasDireccion();
   if (nombre === 'resumen') activarDashboardDireccion();
+  if (nombre === 'inventario') activarInventarioDireccion();
 }
 
 async function vincular() {
@@ -71,6 +81,11 @@ async function vincular() {
 try {
   const cacheCfg = JSON.parse(localStorage.getItem('sumetec_direccion_config_cache') || 'null');
   if (cacheCfg && cacheCfg.datos) _aplicarConfigDireccionPublicada_(cacheCfg.datos.DIRECCION);
+  // Umbral de "stock teórico viejo" de Inventario: vive en la sección GASTOS
+  // de la configuración central (así lo publica el ERP desde antes de F4).
+  if (cacheCfg && cacheCfg.datos && typeof _aplicarConfigInventarioPublicada_ === 'function') {
+    _aplicarConfigInventarioPublicada_(cacheCfg.datos.GASTOS);
+  }
 } catch (_) {}
 
 document.querySelectorAll('[data-vista]').forEach(b => b.onclick = () => vista(b.dataset.vista));

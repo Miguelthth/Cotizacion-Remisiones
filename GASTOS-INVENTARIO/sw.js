@@ -1,6 +1,19 @@
-const CACHE = 'sumetec-inv-425e38a34f'; // J-1 (2026-07-22): Gastos/Inventario -- bump obligatorio o los celulares siguen con la app vieja
+// CACHE/CACHE_ASSETS los bumpea build_deploy.py en cada corrida (hash del
+// contenido real) -- no se editan a mano, y no cambian si no hay cambios de
+// verdad. Dos cachés, no una (F5b, 2026-09-11, punto 7 del checklist
+// pwa-actualizacion-sin-cache): el shell de código (el HTML) cambia seguido;
+// las fuentes del tema (~220 KB) casi nunca cambian -- solo si el ERP
+// cambia de marca. Si compartieran una sola caché, corregir una coma en el
+// HTML forzaría a redescargar las fuentes completas en el siguiente uso.
+const CACHE = 'sumetec-inv-5237531bab'; // bump obligatorio o los celulares siguen con la app vieja
+const CACHE_ASSETS = 'sumetec-inv-assets-089af8bd65';
 const PREFIJO = 'sumetec-inv-';
-const SHELL = ['./gastos-inventario.html', './manifest.json'];
+const SHELL = ['./gastos-inventario.html', './manifest.json', './sumetec-tema.css', './tema-inicial.js'];
+const ARCHIVOS_ASSETS = [
+  './fonts/ibm-plex-sans-variable.woff2', './fonts/ibm-plex-mono-400.woff2',
+  './fonts/ibm-plex-mono-500.woff2', './fonts/ibm-plex-mono-600.woff2',
+  './fonts/bootstrap-icons.woff2'
+];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -10,11 +23,16 @@ self.addEventListener('install', e => {
   // normal del navegador, el service worker "se instalaba bien" (nombre de
   // caché nuevo, skipWaiting disparado) pero guardaba el contenido de
   // siempre. { cache: 'reload' } bypassea esa caché HTTP explícitamente.
-  e.waitUntil(
+  // Las fuentes van aparte: cache.add() normal (SÍ respeta la caché HTTP a
+  // propósito) y solo si de verdad faltan.
+  e.waitUntil(Promise.all([
     caches.open(CACHE).then(c => Promise.all(
       SHELL.map(url => fetch(url, { cache: 'reload' }).then(r => c.put(url, r)))
+    )),
+    caches.open(CACHE_ASSETS).then(c => Promise.all(
+      ARCHIVOS_ASSETS.map(url => c.match(url).then(hit => hit || c.add(url)))
     ))
-  );
+  ]));
 });
 
 self.addEventListener('activate', e => {
@@ -23,7 +41,7 @@ self.addEventListener('activate', e => {
     // en GitHub Pages, Cotizador e Inventario comparten origen, así que borrar
     // "todo lo que no sea mi CACHE" también borraba el caché offline del otro.
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k.startsWith(PREFIJO) && k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k.startsWith(PREFIJO) && k !== CACHE && k !== CACHE_ASSETS).map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
