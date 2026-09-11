@@ -2,6 +2,8 @@
  .metricas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem}.metricas article,.pendientes{padding:.8rem;border:1px solid #35536d;border-radius:.5rem}.metricas strong{display:block;font-size:1.2rem}.oficial{color:#8dd3ff}.pendientes{margin-top:1rem;background:#172b3b}
 dialog{border:0;border-radius:12px;padding:20px;max-width:320px;width:90%}dialog::backdrop{background:rgba(16,42,67,.5)}dialog input{width:100%;box-sizing:border-box;margin:8px 0;padding:10px;border:1px solid #d9e2ec;border-radius:8px;font-size:1rem}#pin-modal-error{color:#c0392b;min-height:1.2em;margin:0}
 #denominaciones-corte{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;border:1px solid #d9e2ec;border-radius:8px;padding:.7rem}.denominacion{display:flex;flex-direction:column;font-size:.85rem;gap:.2rem}.denominacion input{width:100%;box-sizing:border-box;padding:6px;border:1px solid #d9e2ec;border-radius:6px}
+/* OCR de tickets (2026-09-10, estandarizado con Gastos): campo que la IA llenó, desaparece al editarlo. */
+.ia-tocado{background:#FFF7DE;border-color:#E8C547}
 /* Propuesta 3 (2026-09-10): historial reciente de compras en la pantalla de Compras. */
 .historial-compras{list-style:none;padding:0;margin:.5rem 0 0;display:flex;flex-direction:column;gap:.5rem}.historial-item{border:1px solid #d9e2ec;border-radius:8px;padding:.6rem .8rem;display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:center}.historial-item .proveedor{font-weight:600}.historial-item .badge{background:#d9e2ec;border-radius:6px;padding:.15rem .5rem;font-size:.85rem}.historial-item .fecha{color:#627d98;width:100%}.leyenda{color:#627d98;font-size:.85rem;margin:.3rem 0}
 /* Propuesta 6 (2026-09-10): prioridades del ERP en el Resumen. */

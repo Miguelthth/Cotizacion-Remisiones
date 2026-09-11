@@ -194,6 +194,12 @@ function formularioComprasDireccion() {
   <label>Proveedor<input name="proveedor" required></label>
   <label>Fecha<input name="fecha" type="date" required></label>
   <label>Folio del proveedor<input name="folio"></label>
+
+  <label>📷 Foto del ticket (opcional)<input type="file" id="compra_foto" accept="image/*" capture="environment" onchange="_onFotoCompraElegida_()"></label>
+  <img id="compraFotoPreview" style="display:none;max-height:160px;border-radius:6px;margin-top:8px;object-fit:contain">
+  <button id="compraBtnOcr" type="button" style="width:100%;margin-top:8px;display:none" onclick="_leerTicketCompraConIA_()">🔍 Leer ticket</button>
+  <div id="compraOcrEstado" style="font-size:12px;color:#666;margin-top:4px"></div>
+
   <label>Evidencia
     <select name="evidencia">${EVIDENCIAS_COMPRA_DIRECCION.map(x => `<option>${x}</option>`).join('')}</select>
   </label>
@@ -250,6 +256,11 @@ function activarComprasDireccion() {
       const d = Object.fromEntries(new FormData(f));
       d.lineas = _leerLineasCompra(lineas);
       d.pagos = _leerPagosCompra(pagos);
+      // La foto ya viaja comprimida (_comprimirImagenCompra_, cacheada al
+      // elegirla o al leerla con IA) -- nunca se manda el File crudo del
+      // input, que FormData habría ignorado de todos modos por no tener
+      // atributo `name`.
+      if (_compraFotoComprimidaB64) d.foto = _compraFotoComprimidaB64;
       nuevaCompraCampo(d);
       document.querySelector('#resultado-compra').textContent =
         'Compra guardada. Se enviará al vincular conexión, o pulsa "Enviar compras pendientes".';
@@ -257,6 +268,7 @@ function activarComprasDireccion() {
       f.fecha.value = _fechaLocalDireccion_();
       lineas.innerHTML = '';
       pagos.innerHTML = '';
+      _resetFotoCompra_();
       _renderHistorialComprasDireccion_();
     } catch (err) {
       document.querySelector('#resultado-compra').textContent = err.message;
@@ -275,4 +287,208 @@ function activarComprasDireccion() {
       document.querySelector('#resultado-compra').textContent = err.message;
     }
   };
+}
+
+// ── OCR de tickets en Dirección (2026-09-10, estandarizado con Gastos) ───────
+// Mismo patrón exacto que gastos-inventario.html: botón EXPLÍCITO, nunca
+// automático ni dentro del guardado/reintento -- cada reintento offline
+// volvería a cobrar la lectura de la imagen. El handler del lado del Apps
+// Script (tipo:'ocr_ticket') ya existía y ya estaba en _LECTURAS (no pesa
+// sobre el lock de escritura de remisiones/pagos); solo faltaba el permiso
+// del token de Dirección (_TIPOS_DIRECCION_, apps_script.js) y este frente.
+const FOTO_TOPE_KB_COMPRA = 250;
+let _compraTocadaPorOcr = false;
+let _compraFotoComprimidaB64 = ''; // cache: evita comprimir 2 veces (preview + OCR)
+
+function _leerArchivoComoB64Compra_(file) {
+  return new Promise((resolve) => {
+    if (!file) { resolve(''); return; }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
+  });
+}
+
+function _escalarLadoCompra_(ancho, alto, maxLado) {
+  const mayor = Math.max(ancho, alto);
+  if (mayor <= maxLado) return { w: ancho, h: alto }; // nunca agrandar
+  const factor = maxLado / mayor;
+  return { w: Math.round(ancho * factor), h: Math.round(alto * factor) };
+}
+
+function _exportarConCalidadDecrecienteCompra_(canvas, calidadInicial) {
+  const TOPE_BYTES = FOTO_TOPE_KB_COMPRA * 1024;
+  const PISO_CALIDAD = 0.45;
+  return new Promise((resolve, reject) => {
+    const intentar = (q) => {
+      canvas.toBlob((blob) => {
+        if (!blob) { reject(new Error('toBlob vacío')); return; }
+        if (blob.size > TOPE_BYTES && q > PISO_CALIDAD) {
+          intentar(Math.max(PISO_CALIDAD, +(q - 0.1).toFixed(2)));
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+        reader.onerror = () => reject(new Error('FileReader falló'));
+        reader.readAsDataURL(blob);
+      }, 'image/jpeg', q);
+    };
+    intentar(calidadInicial);
+  });
+}
+
+function _comprimirImagenCompra_(file, maxLado, calidad) {
+  maxLado = maxLado || 1600;
+  calidad = calidad || 0.72;
+  return new Promise((resolve) => {
+    if (!file) { resolve(''); return; }
+    const fallback = () => _leerArchivoComoB64Compra_(file).then(resolve);
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const { w, h } = _escalarLadoCompra_(img.naturalWidth || img.width, img.naturalHeight || img.height, maxLado);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          URL.revokeObjectURL(url);
+          _exportarConCalidadDecrecienteCompra_(canvas, calidad).then(resolve).catch(fallback);
+        } catch (e) { URL.revokeObjectURL(url); fallback(); }
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); fallback(); };
+      img.src = url;
+    } catch (e) { fallback(); }
+  });
+}
+
+function _parsearFechaOcrCompra_(str) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(str || '').trim());
+  if (!m) return null;
+  const dd = +m[1], mm = +m[2], yyyy = +m[3];
+  if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+  const p = n => String(n).padStart(2, '0');
+  return `${yyyy}-${p(mm)}-${p(dd)}`;
+}
+
+// Traduce la respuesta del OCR a qué llenar en el formulario -- función pura
+// (sin tocar el DOM), mismo criterio que _aplicarOcrAGasto_ de Gastos. Nunca
+// lanza; ante cualquier duda, { aplicado:false } y el formulario se queda
+// como estaba (captura manual).
+function _aplicarOcrACompra_(resp) {
+  const NADA = { aplicado: false };
+  if (!resp || resp.ok !== true || !resp.campos) return NADA;
+  if (resp.confianza == null || resp.confianza < 50) return NADA;
+  const c = resp.campos;
+  const total = Number(c.total);
+  if (!(total > 0)) return NADA;
+  const out = { aplicado: true, proveedor: String(c.proveedor || '').trim(), fecha: null, total };
+  const fechaOk = _parsearFechaOcrCompra_(c.fecha);
+  if (fechaOk && fechaOk <= _fechaLocalDireccion_()) out.fecha = fechaOk;
+  const iva = Number(c.iva);
+  const subtotal = Number(c.subtotal);
+  if (iva >= 0 && subtotal > 0) {
+    // Subtotal + IVA exactos del papel -- nunca se recalculan (regla del
+    // espejo: el total se toma tal cual, no se vuelve a sumar).
+    out.subtotal = subtotal;
+    out.iva = iva;
+  } else if (iva >= 0) {
+    // Solo vino IVA + total -> el subtotal se deriva una sola vez aquí.
+    out.subtotal = total - iva;
+    out.iva = iva;
+  }
+  return out;
+}
+
+function _onFotoCompraElegida_() {
+  _compraTocadaPorOcr = false;
+  _compraFotoComprimidaB64 = '';
+  const fotoInput = document.getElementById('compra_foto');
+  const file = fotoInput && fotoInput.files ? fotoInput.files[0] : null;
+  const preview = document.getElementById('compraFotoPreview');
+  const btnOcr = document.getElementById('compraBtnOcr');
+  const estado = document.getElementById('compraOcrEstado');
+  if (estado) estado.textContent = '';
+  if (!file) {
+    if (preview) { preview.style.display = 'none'; preview.src = ''; }
+    if (btnOcr) btnOcr.style.display = 'none';
+    return;
+  }
+  if (preview) {
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+  }
+  if (btnOcr) {
+    btnOcr.style.display = 'block';
+    const online = navigator.onLine;
+    btnOcr.disabled = !online;
+    btnOcr.textContent = online ? '🔍 Leer ticket' : '🔍 Leer ticket (sin señal)';
+  }
+}
+
+function _resetFotoCompra_() {
+  _compraTocadaPorOcr = false;
+  _compraFotoComprimidaB64 = '';
+  const preview = document.getElementById('compraFotoPreview');
+  const btnOcr = document.getElementById('compraBtnOcr');
+  const estado = document.getElementById('compraOcrEstado');
+  if (preview) { preview.style.display = 'none'; preview.src = ''; }
+  if (btnOcr) btnOcr.style.display = 'none';
+  if (estado) estado.textContent = '';
+}
+
+function _marcarTocadoPorIACompra_(el) {
+  if (!el) return;
+  el.classList.add('ia-tocado');
+  const quitar = () => el.classList.remove('ia-tocado');
+  el.addEventListener('input', quitar, { once: true });
+  el.addEventListener('change', quitar, { once: true });
+}
+
+async function _leerTicketCompraConIA_() {
+  const btnOcr = document.getElementById('compraBtnOcr');
+  const estado = document.getElementById('compraOcrEstado');
+  const fotoInput = document.getElementById('compra_foto');
+  const file = fotoInput && fotoInput.files ? fotoInput.files[0] : null;
+  if (!file || !navigator.onLine) return;
+  const url = localStorage.getItem('sumetec_direccion_url');
+  if (!url) { if (estado) estado.textContent = 'Vincula el teléfono primero.'; return; }
+  if (btnOcr) { btnOcr.disabled = true; btnOcr.textContent = 'Leyendo…'; }
+  if (estado) estado.textContent = '';
+  try {
+    const pin = await pedirPinDireccion();
+    const token = await abrirSesionDireccion(pin);
+    // Comprime UNA vez y la reusa para el guardado -- así el ticket no se
+    // comprime dos veces ni se lee dos veces por accidente.
+    if (!_compraFotoComprimidaB64) _compraFotoComprimidaB64 = await _comprimirImagenCompra_(file);
+    const res = await fetch(url, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ tipo: 'ocr_ticket', token, foto: _compraFotoComprimidaB64 }),
+    });
+    const resp = await res.json();
+    const r = _aplicarOcrACompra_(resp);
+    if (!r.aplicado) {
+      _compraTocadaPorOcr = false;
+      if (estado) estado.textContent = '⚠️ No se pudo leer, captura a mano.';
+      return;
+    }
+    _compraTocadaPorOcr = true;
+    const f = document.querySelector('#form-compra');
+    if (r.proveedor && f.proveedor) { f.proveedor.value = r.proveedor; _marcarTocadoPorIACompra_(f.proveedor); }
+    if (r.fecha && f.fecha) { f.fecha.value = r.fecha; _marcarTocadoPorIACompra_(f.fecha); }
+    if (r.subtotal != null && f.subtotal) { f.subtotal.value = r.subtotal.toFixed(2); _marcarTocadoPorIACompra_(f.subtotal); }
+    if (r.iva != null && f.iva) { f.iva.value = r.iva.toFixed(2); _marcarTocadoPorIACompra_(f.iva); }
+    // El total se toma tal cual lo dice el papel -- NUNCA se recalcula de
+    // subtotal+iva aunque el listener de arriba (f.subtotal.oninput) exista
+    // para la captura manual. Es la regla del espejo de la remisión.
+    if (f.total) { f.total.value = r.total.toFixed(2); _marcarTocadoPorIACompra_(f.total); }
+    if (estado) estado.textContent = '✅ IA — revísalo antes de guardar.';
+  } catch (e) {
+    _compraTocadaPorOcr = false;
+    if (estado) estado.textContent = '⚠️ Error de lectura, captura a mano.';
+  } finally {
+    if (btnOcr) { btnOcr.disabled = !navigator.onLine; btnOcr.textContent = navigator.onLine ? '🔍 Leer ticket' : '🔍 Leer ticket (sin señal)'; }
+  }
 }

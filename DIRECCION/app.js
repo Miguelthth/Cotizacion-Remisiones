@@ -79,6 +79,15 @@ window.addEventListener('online', estado);
 window.addEventListener('offline', estado);
 vista('resumen');
 estado();
+// Hallazgo 2026-09-10 (Miguel: "me dijo código incorrecto pero me dejó
+// pasar"): <dialog> se cierra solo con Escape o el botón atrás de Android
+// (evento nativo 'cancel'), y como #app ya tiene la pantalla de Resumen
+// dibujada DETRÁS de este modal (vista('resumen') corrió arriba), cerrarlo
+// así -- sin que vincular() haya tenido éxito -- deja ver la app entera sin
+// ninguna sesión ni token guardado. Parece que "ya funcionó" y no vinculó
+// nada. Bloqueado aquí: mientras no haya sesión, este diálogo no se puede
+// descartar sin completar la vinculación de verdad.
+$('#vincular').addEventListener('cancel', e => e.preventDefault());
 if (!localStorage.getItem(SESION_KEY)) $('#vincular').showModal();
 
 // Registro + actualización activa: el navegador por su cuenta solo revisa
