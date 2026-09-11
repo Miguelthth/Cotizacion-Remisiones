@@ -1,6 +1,6 @@
 // CACHE lo bumpea build_deploy.py en cada corrida (hash del contenido real)
 // -- no se edita a mano, y no cambia si no hay cambios de verdad.
-const CACHE = 'sumetec-direccion-c7d004e270';
+const CACHE = 'sumetec-direccion-0827991bd3';
 const PREFIJO = 'sumetec-direccion-';
 const SHELL = [
   './', './direccion.html', './app.js', './caja.js', './compras.js',

@@ -86,6 +86,19 @@ async function cargarDashboardDireccion(pin) {
 }
 
 async function activarDashboardDireccion() {
+  // Hallazgo 2026-09-10 (Miguel: "Escape cierra el diálogo de vinculación"):
+  // no era ese diálogo -- este código pedía el PIN sin fijarse si YA había
+  // un teléfono vinculado. La primera vez que se abre la app (o cualquier
+  // vez sin sesión), #vincular y #pin-modal terminaban abiertos los dos a
+  // la vez, compitiendo; #pin-modal SÍ es cancelable a propósito (uso
+  // diario), así que Escape lo cerraba a él, no al de vinculación, dejando
+  // "PIN cancelado" en Resumen y la falsa impresión de que el candado de
+  // #vincular no servía. Sin sesión, no hay nada que consultar todavía.
+  if (!localStorage.getItem(SESION_KEY)) {
+    document.querySelector('#app').innerHTML =
+      '<h1>Resumen</h1><p>Vincula este teléfono para ver el resumen.</p>';
+    return;
+  }
   try {
     const pin = await pedirPinDireccion();
     const s = await cargarDashboardDireccion(pin);
