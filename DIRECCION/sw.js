@@ -1,9 +1,9 @@
 // CACHE lo bumpea build_deploy.py en cada corrida (hash del contenido real)
 // -- no se edita a mano, y no cambia si no hay cambios de verdad.
-const CACHE = 'sumetec-direccion-5d0e22b489';
+const CACHE = 'sumetec-direccion-e56e7ebbf6';
 const PREFIJO = 'sumetec-direccion-';
 const SHELL = [
-  './', './index.html', './app.js', './caja.js', './compras.js',
+  './', './direccion.html', './app.js', './caja.js', './compras.js',
   './corte.js', './dashboard.js', './seguridad.js', './estilos.css',
   './manifest.json', './version.js'
 ];
@@ -48,7 +48,7 @@ self.addEventListener('fetch', e => {
           }
           return r;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match('./direccion.html'))
     );
     return;
   }
