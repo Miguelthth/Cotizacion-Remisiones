@@ -516,10 +516,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <input id="tg_input" type="password" placeholder="Pega tu token aquí…"
       style="width:100%;box-sizing:border-box;padding:12px 14px;border:2px solid #e5e7eb;border-radius:10px;font-size:14px;margin-bottom:12px;font-family:inherit"
       oninput="_tgSyncBtn()">
+    <div id="tg_error" style="display:none;color:#dc2626;font-size:12.5px;font-weight:600;line-height:1.5;text-align:left;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px;margin-bottom:10px"></div>
     <div style="display:flex;gap:8px;margin-bottom:10px">
       <button onclick="_tgPegar()" style="flex:1;padding:10px;border:1.5px solid #e5e7eb;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;background:#f9fafb;font-family:inherit">📋 Pegar</button>
       <button id="tg_btn" onclick="_tgGuardar()" disabled
-        style="flex:2;padding:10px;background:#1C6E4A;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;opacity:.5">✅ Guardar y entrar</button>
+        style="flex:2;padding:10px;background:#9CA3AF;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;opacity:1;transition:background .15s">✅ Guardar y entrar</button>
     </div>
     <div style="font-size:11px;color:#9CA3AF">El token te lo da tu administrador o está en tu archivo TOKEN_SECRETO.txt</div>
   </div>
@@ -597,21 +598,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <div class="fr"><span class="fl">C.P.</span><div class="fv"><input id="c_cp" type="text" placeholder="—" oninput="autosave()"></div></div>
       <div class="cs">
         <div class="ci"><div class="ci-icon">📞</div><div><div class="ci-lbl">Teléfono</div><div class="ci-val"><input id="c_tel" type="text" placeholder="—" oninput="autosave()"></div></div></div>
-      </div>
-      <!-- Enviar por correo (mejora 2026-09-10, doc COTIZADOR.docx): se marca sola si el
-           cliente YA tiene correo; si no, avisa y manda a "➕ Más datos" a capturarlo
-           (que ya se guarda en Clientes Maestro al registrar la remisión). -->
-      <div class="cs" style="margin-top:6px;padding-top:10px">
-        <div class="ci" style="width:100%">
-          <div class="ci-icon">✉️</div>
-          <div style="flex:1">
-            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:2px">
-              <input type="checkbox" id="chkEnviarCorreo" onchange="_onChkEnviarCorreoClick()">
-              <span class="ci-lbl" style="margin:0">Enviar por correo al cliente</span>
-            </label>
-            <div id="correoEstadoTxt" style="font-size:11px;color:var(--muted)"></div>
-          </div>
-        </div>
       </div>
     </div>
     <div class="card">
@@ -694,8 +680,22 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <button onclick="closeOv('ovConfirmReg')" aria-label="Cerrar" style="position:absolute;top:10px;right:12px;background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--muted)">✕</button>
       <div id="confRegIcon" style="font-size:52px;margin-bottom:12px">✅</div>
       <div id="confRegTitulo" style="font-size:20px;font-weight:800;color:var(--navy);margin-bottom:8px"></div>
-      <div id="confRegDetalle" style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.6"></div>
-      <button class="btn btn-p" style="width:100%;justify-content:center;padding:14px;font-size:15px;font-weight:700;border-radius:10px;margin-bottom:8px" onclick="closeOv('ovConfirmReg');descargarPDFSiRegistrado()">⬇️ Descargar PDF</button>
+      <div id="confRegDetalle" style="font-size:14px;color:var(--muted);margin-bottom:14px;line-height:1.6"></div>
+      <!-- MC-03 (2026-09-11): casillas de envío, aquí en vez del formulario del cliente --
+           ambas DESMARCADAS de fábrica (nunca se manda solo por descuidar un check). -->
+      <div style="text-align:left;background:var(--bg);border-radius:10px;padding:10px 12px;margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;font-size:13px;font-weight:600">
+          <input type="checkbox" id="chkCorreoConfirm" onchange="_onChkCorreoConfirm()">
+          ✉️ Enviar por correo
+        </label>
+        <div id="correoConfirmEstado" style="font-size:11px;color:var(--muted);margin:0 0 8px 24px"></div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
+          <input type="checkbox" id="chkWhatsappConfirm">
+          💬 WhatsApp
+        </label>
+        <div style="font-size:11px;color:var(--muted);margin:2px 0 0 24px">Abre el menú Compartir del celular con el PDF listo</div>
+      </div>
+      <button class="btn btn-p" style="width:100%;justify-content:center;padding:14px;font-size:15px;font-weight:700;border-radius:10px;margin-bottom:8px" onclick="_descargarDesdeConfirmacion()">⬇️ Descargar PDF</button>
       <button class="btn" style="width:100%;justify-content:center;padding:10px;font-size:14px;background:var(--bg);color:var(--muted)" onclick="closeOv('ovConfirmReg')">Ahora no</button>
     </div>
   </div>
@@ -733,6 +733,11 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
   <div style="background:var(--navy-soft);padding:12px 28px;color:#fff;display:flex;align-items:center;gap:10px">
     <span id="cobroTitle" style="font-weight:700;font-size:13px;letter-spacing:.5px">💰 COBRO</span>
     <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+      <!-- MC-04: Pendiente a la izquierda, Poner total a la derecha -->
+      <button id="btnPendiente" onclick="setAtajoPendiente()" title="Registrar SIN pago, a crédito"
+        style="background:rgba(255,255,255,.10);border:1.5px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">
+        Pendiente
+      </button>
       <!-- Botón grande y visible para poner el total completo en el campo de abono -->
       <button id="btnPagarTotal" onclick="setAtajoMonto(1)"
         style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">
@@ -750,12 +755,14 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     <input type="checkbox" id="checkPagado" style="display:none">
     <div id="abonoArea">
       <div style="display:flex;gap:8px;margin-bottom:2px;align-items:stretch">
-        <input id="montoAbono" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="$ Monto a abonar" class="monto-input-grande" style="flex:1;margin-bottom:0" oninput="_actualizarPreviewMonto('montoAbono','montoAbonoFmt')">
+        <input id="montoAbono" type="text" inputmode="decimal" placeholder="$ Monto a abonar" class="monto-input-grande" style="flex:1;margin-bottom:0" oninput="_onInputMontoAbono(this)">
         <button class="btn btn-g" style="flex-shrink:0;padding:12px 16px;font-size:13px;font-weight:700;white-space:nowrap;border-radius:10px" onclick="setAtajoMonto(1)">Total →</button>
       </div>
-      <!-- doc COTIZADOR.docx 2026-09-10: el input de dinero no admite "$1,234.56" sin
-           romper parseFloat (comas/signo) -- esta línea muestra el monto YA formateado
-           en vivo, sin tocar cómo se lee el número en ningún lado del código. -->
+      <!-- MC-04 (2026-09-11): el campo YA muestra "$1,234.56" mientras se escribe
+           (antes era type=number, sin $ ni comas, y solo se veía formateado abajo).
+           _onInputMontoAbono reformatea el texto EN VIVO; parseMonto() (calculos.js)
+           es el ÚNICO parser que lee el valor real en todo el código -- nunca
+           parseFloat directo sobre este campo. -->
       <div id="montoAbonoFmt" style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px;min-height:16px"></div>
       <label class="no-print" style="font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:2px">💳 Método de pago <span style="font-weight:400">(cómo pagó — distinto de las condiciones de arriba)</span></label>
       <select id="metodoAbono" class="no-print" style="width:100%;border:2px solid var(--border);border-radius:10px;padding:10px;font-size:14px;font-family:inherit;margin-bottom:8px;background:#fff"><!-- opciones desde CONFIG: OPCIONES_METODO_PAGO --></select>
@@ -1013,7 +1020,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 </div></div>
 
 <div class="ov" id="ovNuevoCliente"><div class="modal" style="max-width:480px">
-  <div class="modal-hd"><div class="modal-title" id="ncTitulo">👤 Agregar Nuevo Cliente</div><button class="mx" onclick="closeOv('ovNuevoCliente')">✕</button></div>
+  <div class="modal-hd"><div class="modal-title" id="ncTitulo">👤 Agregar Nuevo Cliente</div><button class="mx" onclick="closeOv('ovNuevoCliente');_trasCapturarCorreoDescargar=false">✕</button></div>
   <div class="fg"><label>Nombre / Razón Social *</label><input id="nc_nombre" type="text" placeholder="EMPRESA SA DE CV"></div>
 
   <div class="fg"><label>Dirección</label><input id="nc_dir" type="text" placeholder="Calle, Ciudad"></div>
@@ -1587,12 +1594,16 @@ window.addEventListener('offline',()=>setOnlineState(false));
 // C) Recordatorio/seguridad al salir o pasar a segundo plano.
 // Cuenta lo que falta por enviar (pagos+remisiones+pdfs+borrados).
 function _pendientesTotal(){
+  // MC-06: fallas_erp NO cuenta aquí. Este número es solo "lo que de verdad
+  // está esperando subir" (colas de envío). Una venta que YA se guardó pero
+  // no llegó al ERP no es una cola pendiente de subir -- es una falla aparte,
+  // que se avisa por su cuenta (ver _actualizarBadgeExcepciones/abrirExcepciones)
+  // para no confundir "⚠️ 1 sin enviar" con "el PDF no se subió".
   return leerSeguro('cola_offline',[]).length+leerSeguro('cola_remisiones',[]).length
        +leerSeguro('cola_pdf',[]).length+leerSeguro('cola_elim',[]).length
        +leerSeguro('cola_cot_r',[]).length // cotizaciones pendientes
        +leerSeguro('cola_nuevos',[]).length // clientes/productos nuevos pendientes
-       +leerSeguro('cola_cancel',[]).length // M-07: cancelaciones sin entregar al servidor
-       +leerSeguro('fallas_erp',[]).length; // C-02: ventas guardadas que NO llegaron al ERP
+       +leerSeguro('cola_cancel',[]).length; // M-07: cancelaciones sin entregar al servidor
 }
 // Al minimizar/cambiar de app: si hay señal, intenta vaciar las colas en segundo plano
 // (clave en iPhone, que puede borrar los datos tras ~7 días sin abrir la app).
@@ -1692,7 +1703,9 @@ function aplicarPago(rem, monto, opts){
   if(saldoActual<=0){ toast('Esta remisión no tiene saldo por cobrar','warn'); return null; }
   if(!forzarCompleto){
     if(m<=0){ toast('Ingresa un monto válido','err'); return null; }
-    if(m > saldoActual+0.005){ toast('El monto supera el saldo ('+fmt(saldoActual)+' MXN)','err'); return null; }
+    // MC-04: antes era un toast (se leía a medias, desaparecía solo) -- un pago
+    // mayor al saldo merece un popup que el usuario tenga que cerrar a propósito.
+    if(m > saldoActual+0.005){ popupAlerta('El monto ('+fmt(m)+' MXN) supera el saldo pendiente de '+fmt(saldoActual)+' MXN.','⚠️ Monto excede el saldo'); return null; }
   }
 
   // Umbral ÚNICO de liquidación: si lo que falta tras el abono es ≤ medio centavo, liquida.
@@ -1815,6 +1828,16 @@ const EMPRESA_DEFAULT = {
 //
 // Asesores / vendedores (campo "Asesor" de remisión y cotización):
 const OPCIONES_ASESOR          = ['Miguel Tejeda','Jose Gutierrez','Equipo SUMETEC'];
+// MC-05: hasta DOS teléfonos por asesor, impresos en el PDF en una línea aparte
+// debajo del asesor (igual que el patrón tel/tel2 de la empresa). El nombre de
+// aquí debe coincidir EXACTO con OPCIONES_ASESOR (es la llave del lookup).
+// Miguel: llena aquí los números reales (o edítalos en Identidad/Ecosistema del
+// ERP y vuelve a subir este archivo) -- vacío no imprime nada.
+const OPCIONES_ASESOR_TEL = {
+  'Miguel Tejeda':   {tel:'', tel2:''},
+  'Jose Gutierrez':  {tel:'', tel2:''},
+  'Equipo SUMETEC':  {tel:'', tel2:''}
+};
 // Condiciones de pago de la REMISIÓN (ya es una venta entregada).
 // La primera opción es '' (vacía) = SIN crédito → no aparece nada en el PDF.
 const OPCIONES_PAGO_REMISION   = ['','Crédito a 7 días','Crédito a 15 días','Crédito a 30 días'];
@@ -2266,11 +2289,16 @@ async function guardarEnDrive(doc,folio,cliente,total,filename,remParam,hashPdf,
     email:document.getElementById('c_email')?.value||'',
     personaMoral:document.getElementById('c_persona_moral')?.value==='1'
   };
-  // 2026-09-10 (mejora "enviar a correo", doc COTIZADOR.docx): solo se pide enviar si la
-  // casilla está marcada Y el correo tiene forma válida -- el checkbox ya no puede quedar
-  // marcado sin un correo real (ver _onChkEnviarCorreoClick), pero se revisa otra vez aquí
-  // por si el correo se borró después de marcarla.
-  const correoEnviar=!!(document.getElementById('chkEnviarCorreo')?.checked&&_correoValido(datosCliente.email));
+  // MC-03 (2026-09-11): la casilla ya no vive en el formulario -- se lee de
+  // _correoPendienteEnvio, capturada en el popup de confirmación justo al pulsar
+  // Descargar (ver _descargarDesdeConfirmacion). Se revisa el correo otra vez
+  // aquí por si se borró entre que se marcó la casilla y este momento.
+  const correoEnviar=!!(_correoPendienteEnvio&&_correoValido(datosCliente.email));
+  _correoPendienteEnvio=false; // se consume una sola vez -- nunca se arrastra a la siguiente descarga
+  // Asunto y cuerpo salen de la identidad del negocio (empresa.nombre/slogan),
+  // nunca quemados en apps_script.js -- el servidor los usa tal cual si vienen.
+  const correoAsunto=correoEnviar?('Tu remisión '+folio+' — '+(empresa.nombre||'SUMETEC')):'';
+  const correoCuerpo=correoEnviar?_mensajeAgradecimiento(datosCliente.nombre||cliente,folio,total):'';
   const entry={tipo:'remision',
     id:remActiva?remActiva.id:'',
     folio, cliente:cliente||'CLIENTE',
@@ -2280,7 +2308,7 @@ async function guardarEnDrive(doc,folio,cliente,total,filename,remParam,hashPdf,
     estado:remActiva?remActiva.estado:'pendiente',
     condicionesPago:document.getElementById('d_pago')?.value||'',
     horaDescarga, lat:gps?gps.lat:'', lng:gps?gps.lng:'',
-    datosCliente, correoEnviar,
+    datosCliente, correoEnviar, correoAsunto, correoCuerpo,
     pdf:b64, device:_deviceLabel_()};
   _guardarEnColaPDF(entry); // nunca se pierde para Drive
   actualizarBadgePendientes();
@@ -2303,7 +2331,11 @@ async function guardarEnDrive(doc,folio,cliente,total,filename,remParam,hashPdf,
           persistirRemisiones();
         }
         if(correoEnviar){
-          if(d.correoEnviado) toast('Guardado en Drive ✓ · ✉️ correo enviado','ok');
+          if(d.correoEnviado){
+            toast('Guardado en Drive ✓ · ✉️ correo enviado','ok');
+            // MC-03: marca local para "ya se envió antes" -- se lee en _mostrarConfirmacion.
+            if(remActiva){remActiva.correoEnviadoInfo={ts:Date.now(),email:datosCliente.email};persistirRemisiones();}
+          }
           else toast('Guardado en Drive ✓ · ⚠️ no se pudo enviar el correo (se guardó igual)','warn',5000);
         } else {
           toast('Guardado en Drive ✓','ok');
@@ -2460,12 +2492,14 @@ function renderTable(){
 <td class="td-cl" data-label="Código" style="position:relative"><input class="ti cl" type="text" value="${esc(it.clave)}" placeholder="CÓDIGO" data-id="${it._id}" data-f="clave" oninput="upd(this);showPP(this)" onblur="hidePP(this)" onclick="this.select();showPP(this)"></td>
 <td class="td-desc" data-label="Descripción"><input class="ti" type="text" value="${esc(it.desc)}" placeholder="Descripción" data-id="${it._id}" data-f="desc" oninput="upd(this)"></td>
 <td class="td-r" data-label="Precio Unit." style="position:relative">
-  <div style="display:flex;align-items:center;gap:4px">
-    ${(costoEfectivo(it)>0&&+it.precio>0)?`<div id="margen${it._id}" class="no-print" onclick="_infoMargen(${it._id})" style="cursor:pointer;font-size:9px;font-weight:800;line-height:1;white-space:nowrap;color:${((+it.precio-costoEfectivo(it))/+it.precio*100)<30?'#c0392b':'#1C6E4A'}" title="Margen — toca para detalle">▣${(((+it.precio-costoEfectivo(it))/+it.precio)*100).toFixed(0)}%</div>`:'<div style="width:28px"></div>'}
-    ${(+it.costo>0)?`<button type="button" class="no-print" onclick="sugerirPrecio(${it._id})" title="Sugerir precio (costo × factor)" style="border:none;background:none;cursor:pointer;font-size:12px;line-height:1;padding:2px">💡</button>`:''}
-    <input class="ti r" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(it.precio)}" placeholder="0.00" data-id="${it._id}" data-f="precio" oninput="upd(this)" onclick="this.select()" style="flex:1;min-width:0">
+  <input class="ti r" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(it.precio)}" placeholder="0.00" data-id="${it._id}" data-f="precio" oninput="upd(this)" onclick="this.select()" style="width:100%;box-sizing:border-box">
+  <div class="no-print" style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:2px">
+    <div style="display:flex;align-items:center;gap:4px">
+      ${(costoEfectivo(it)>0&&+it.precio>0)?`<div id="margen${it._id}" onclick="_infoMargen(${it._id})" style="cursor:pointer;font-size:9px;font-weight:800;line-height:1;white-space:nowrap;color:${((+it.precio-costoEfectivo(it))/+it.precio*100)<30?'#c0392b':'#1C6E4A'}" title="Margen — toca para detalle">▣${(((+it.precio-costoEfectivo(it))/+it.precio)*100).toFixed(0)}%</div>`:''}
+      ${(+it.costo>0)?`<button type="button" onclick="sugerirPrecio(${it._id})" title="Sugerir precio (costo × factor)" style="border:none;background:none;cursor:pointer;font-size:12px;line-height:1;padding:2px">💡</button>`:''}
+    </div>
+    ${it._precioAnt!=null?`<div onclick="usarPrecioAnterior(${it._id})" style="cursor:pointer;color:#1a56a0;font-size:9px;font-weight:700;white-space:nowrap;line-height:1;text-align:right" title="Precio anterior de este cliente">↩ $${(+it._precioAnt).toFixed(2)}</div>`:''}
   </div>
-  ${it._precioAnt!=null?`<div class="no-print" onclick="usarPrecioAnterior(${it._id})" style="cursor:pointer;color:#1a56a0;font-size:9px;font-weight:700;white-space:nowrap;line-height:1;text-align:right" title="Precio anterior de este cliente">↩ $${(+it._precioAnt).toFixed(2)}</div>`:''}
 </td>
 <td class="td-c td-iva" data-label="IVA">${it.regalo?'—':(it.iva||0)+'%'}</td>
 <td class="td-imp" data-label="Importe" id="imp${it._id}">${_impCellHtml(it)}</td>
@@ -2912,6 +2946,31 @@ function _enModoCotizacion(){
 // desmarca y explica cómo capturarlo. Nunca decide por ti si el cliente SÍ tiene
 // correo -- solo sugiere el estado más probable, tú puedes destildarla igual.
 function _correoValido(v){ return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test((v||'').trim()); }
+// MC-03: texto ÚNICO para correo y WhatsApp -- sale de la identidad del negocio
+// (empresa.nombre/slogan, inyectada desde identidad-negocio/empresa.json), nunca
+// quemado por separado en cada canal.
+function _mensajeAgradecimiento(cliente,folio,total){
+  const nombreEmp=empresa.nombre||'SUMETEC';
+  return 'Hola '+(cliente||'')+', gracias por tu compra en '+nombreEmp+'.\n'+
+    'Te compartimos tu remisión '+folio+' por un total de '+fmt(total)+' MXN.\n\n'+
+    (empresa.slogan?empresa.slogan+'\n':'')+nombreEmp;
+}
+// MC-03: abre el menú Compartir del celular con el PDF + el mismo mensaje de
+// agradecimiento -- Miguel elige el chat (sin API de WhatsApp Business, de paga
+// y con aprobación de Meta). Requiere Web Share API con soporte de archivos
+// (Android Chrome, iOS Safari); si no hay, se avisa en vez de fallar en silencio.
+function _compartirWhatsAppPDF(doc,filename,cliente,folio,total){
+  try{
+    if(!navigator.share){ toast('Este dispositivo no tiene menú Compartir — descarga el PDF y adjúntalo a mano','warn',5000); return; }
+    const blob=doc.output('blob');
+    const file=new File([blob],filename,{type:'application/pdf'});
+    const mensaje=_mensajeAgradecimiento(cliente,folio,total);
+    const payload=(navigator.canShare&&navigator.canShare({files:[file]}))
+      ?{files:[file],text:mensaje,title:filename}
+      :{text:mensaje,title:filename};
+    navigator.share(payload).catch(e=>{ if(e.name!=='AbortError') toast('No se pudo abrir Compartir — descarga el PDF y adjúntalo a mano','warn',5000); });
+  }catch(e){ console.warn('_compartirWhatsAppPDF',e); }
+}
 function _actualizarChkCorreo(){
   const chk=document.getElementById('chkEnviarCorreo');
   const txt=document.getElementById('correoEstadoTxt');
@@ -5059,11 +5118,20 @@ function _tgPegar(){
   }).catch(()=>toast('Pégalo manualmente en el campo','warn',3000));
 }
 // I-5: el botón de entrar solo se habilita con nombre Y token, los dos obligatorios.
+// MC-01: el botón ya cambia de color según el estado (gris = falta algo, verde = listo)
+// en vez de un opacity fijo que lo dejaba viéndose igual de "activo" siempre.
 function _tgSyncBtn(){
   const nombre=(document.getElementById('tg_nombre')?.value||'').trim();
   const tok=(document.getElementById('tg_input')?.value||'').trim();
   const btn=document.getElementById('tg_btn');
-  if(btn)btn.disabled=!(nombre&&tok);
+  const listo=!!(nombre&&tok);
+  if(btn){
+    btn.disabled=!listo;
+    btn.style.background=listo?'#1C6E4A':'#9CA3AF';
+    btn.style.cursor=listo?'pointer':'not-allowed';
+  }
+  const err=document.getElementById('tg_error');
+  if(err)err.style.display='none';
 }
 // Antes entraba con CUALQUIER texto no vacío (nunca preguntaba al servidor si
 // era correcto) -- un token mal escrito daba acceso completo a la app. Ahora,
@@ -5074,8 +5142,13 @@ function _tgSyncBtn(){
 async function _tgGuardar(){
   const v=(document.getElementById('tg_input')?.value||'').trim();
   const nombre=(document.getElementById('tg_nombre')?.value||'').trim();
-  if(!nombre){toast('Escribe tu nombre primero','err');return;}
-  if(!v){toast('Escribe el token primero','err');return;}
+  const err=document.getElementById('tg_error');
+  // MC-01: el error se muestra DENTRO de la tarjeta (el toast queda oculto
+  // debajo del overlay #tokenGate, z-index 99999, y nunca se llegaba a leer).
+  const mostrarError=(msg)=>{if(err){err.textContent=msg;err.style.display='block';}};
+  if(!nombre){mostrarError('⚠️ Escribe tu nombre primero.');return;}
+  if(!v){mostrarError('⚠️ Escribe el token primero.');return;}
+  if(err)err.style.display='none';
   const btn=document.getElementById('tg_btn');
   if(btn){btn.disabled=true;btn.textContent='⏳ Verificando…';}
   try{
@@ -5083,12 +5156,12 @@ async function _tgGuardar(){
     const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({tipo:'ping',token:v})});
     const j=await r.json();
     if(!(j&&j.ok)){
-      toast('❌ Token incorrecto — el servidor lo rechazó','err',4500);
-      if(btn){btn.disabled=false;btn.textContent='✅ Guardar y entrar';}
+      mostrarError('❌ Token incorrecto — el servidor lo rechazó.');
+      if(btn){btn.disabled=false;btn.textContent='✅ Guardar y entrar';btn.style.background='#1C6E4A';}
       return;
     }
   }catch(e){
-    toast('⚠️ Sin conexión — no se pudo validar. Se guardó, verifica en ⚙️ Configuración en cuanto tengas señal.','warn',5500);
+    mostrarError('⚠️ Sin conexión — no se pudo validar. Se guardó, verifica en ⚙️ Configuración en cuanto tengas señal.');
   }
   // Copiar también al campo del modal de token (consistencia)
   const inp2=document.getElementById('api_token_input');if(inp2)inp2.value=v;
@@ -5478,6 +5551,14 @@ function guardarNuevoCliente(soloAhora){
     // Restaurar el modal a su estado normal para la próxima vez que se use como "nuevo".
     document.getElementById('ncBtnGuardar').style.display='';
     document.getElementById('ncBtnSoloAhora').textContent='⚡ Solo usar ahora';
+    // MC-03: si "Más datos" se abrió porque faltaba el correo para poder
+    // enviarlo (ver _descargarDesdeConfirmacion), reanudar la descarga+envío
+    // automáticamente ahora que ya se capturó y guardó.
+    if(_trasCapturarCorreoDescargar){
+      _trasCapturarCorreoDescargar=false;
+      closeOv('ovConfirmReg');
+      descargarPDFSiRegistrado();
+    }
     return;
   }
   if(!soloAhora){
@@ -5747,6 +5828,11 @@ function descargarPDF(remOverride, forzarDescarga){
 
     const dAsesor   = _regen ? (_d.d_asesor||'') : document.getElementById('d_asesor').value;
     const dPago     = _regen ? (_d.d_pago||'')   : document.getElementById('d_pago').value;
+    // MC-05: teléfono del asesor impreso junto a su nombre, si está capturado en OPCIONES_ASESOR_TEL.
+    // MC-05: hasta dos teléfonos del asesor, en su PROPIA línea debajo de "Asesor"
+    // (no pegados al nombre) -- mismo patrón que tel/tel2 de la empresa.
+    const _dAsesorTelObj = OPCIONES_ASESOR_TEL[dAsesor]||{};
+    const dAsesorTelLinea = [_dAsesorTelObj.tel,_dAsesorTelObj.tel2].filter(Boolean).join('  |  ');
 
 
     let obs_        = (_regen ? _d.obs : document.getElementById('obs').value)||'Los precios están sujetos a cambio sin previo aviso.';
@@ -5820,7 +5906,7 @@ function descargarPDF(remOverride, forzarDescarga){
 
     const rxD=ML+hW+4;
     let rightH=10; // header detalles
-    [[dAsesor],[dPago]].forEach(([v])=>{ if(v) rightH+=lineH*Math.max(1,lh_(v,hW))+1; });
+    [[dAsesor],[dAsesorTelLinea],[dPago]].forEach(([v])=>{ if(v) rightH+=lineH*Math.max(1,lh_(v,hW))+1; });
     const telLine=[empresa.tel,empresa.tel2].filter(Boolean).join('  ');
     const emisorVals=[empresa.rfc,empresa.dir,telLine].filter(Boolean);
     if(emisorVals.length){ rightH+=7; emisorVals.forEach(v=>{ rightH+=lineH*Math.max(1,lh_(v,hW))+1; }); } // separador + header emisor + campos
@@ -5880,6 +5966,7 @@ function descargarPDF(remOverride, forzarDescarga){
       cy+=lineH*lines.length+1;
     };
     rR('Asesor',dAsesor);
+    rR('Tel. asesor',dAsesorTelLinea);
     rR('Condiciones de pago',dPago);
     cy+=1;
     doc.setDrawColor(...BRD).setLineWidth(0.2).line(rxD+3,cy,rxD+hW-3,cy); cy+=3.5;
@@ -6106,10 +6193,21 @@ function descargarPDF(remOverride, forzarDescarga){
     // que sí cambia el contenido), si nunca se había subido, o si el hash cambió.
     const _hashPDFActual=_hashRemPDF(remActivo,folio_,tot,activeItems.length);
     const _yaSubidoIgual=!!(remActivo&&remActivo.pdfSubidoTs&&remActivo.pdfHash===_hashPDFActual);
-    if(_regen||!_yaSubidoIgual){
+    // MC-03: un reenvío de correo a propósito (PDF sin cambios, pero la casilla
+    // ✉️ se marcó esta vez) SÍ debe llamar a guardarEnDrive -- si no, el envío
+    // se pierde en silencio porque "nada cambió" en el contenido del PDF.
+    if(_regen||!_yaSubidoIgual||_correoPendienteEnvio){
       guardarEnDrive(doc,folio_,cNombre,tot,filename,_regen?remOverride:null,_hashPDFActual,!!(remActivo&&remActivo.pdfSubidoTs));
     }
     if(_regen)return; // regeneración: solo subir a Drive con el folio definitivo, sin descargar/compartir
+
+    // MC-03: WhatsApp -- comparte el PDF + mensaje de agradecimiento por el menú
+    // Compartir del celular. Independiente del branch iOS/escritorio de abajo:
+    // la casilla decide, no la plataforma.
+    if(_whatsappPendienteEnvio){
+      _whatsappPendienteEnvio=false;
+      _compartirWhatsAppPDF(doc,filename,cNombre,folio_,tot);
+    }
 
     // ── DESCARGA / APERTURA ──────────────────────────────
     if(isIOS){
@@ -6260,7 +6358,15 @@ function setAtajoMonto(pct){
   const r=remActualId?remisiones.find(x=>x.id===remActualId):null;
   const base=r?r.saldo:_calcTotalFormulario();
   if(base<=0)return;
-  document.getElementById('montoAbono').value=Math.round(base*pct*100)/100;
+  document.getElementById('montoAbono').value=formatearMontoTexto(String(Math.round(base*pct*100)/100));
+  _actualizarPreviewMonto('montoAbono','montoAbonoFmt');
+}
+// MC-04: botón "Pendiente" -- registra la venta SIN pago (a crédito). No es un
+// monto de 0 disfrazado: el campo muestra la palabra para que quede claro que
+// fue una decisión, no un abono vacío por descuido.
+function setAtajoPendiente(){
+  const inp=document.getElementById('montoAbono');
+  if(inp){inp.value='PENDIENTE';}
   _actualizarPreviewMonto('montoAbono','montoAbonoFmt');
 }
 
@@ -6304,7 +6410,7 @@ function onCheckPagado(checked){
 function registrarPago(){
   if(!remActualId){toast('Usa el botón REGISTRAR para guardar primero','warn',3000);return;}
   const r=remisiones.find(x=>x.id===remActualId);
-  const monto=Math.round(parseFloat(document.getElementById('montoAbono').value||0)*100)/100;
+  const monto=parseMonto(document.getElementById('montoAbono').value);
   const pago=aplicarPago(r, monto); // función única
   if(!pago)return;
   document.getElementById('montoAbono').value='';
@@ -6322,7 +6428,7 @@ async function registrarPagoConGuardar(tipo){
         const r=remActualId?remisiones.find(x=>x.id===remActualId):null;
         return r?r.saldo:_calcTotalFormulario();
       })()
-    : Math.round(parseFloat(document.getElementById('montoAbono').value||0)*100)/100;
+    : parseMonto(document.getElementById('montoAbono').value);
 
   if(monto<=0){toast('Ingresa un monto válido','err');return;}
 
@@ -6419,7 +6525,7 @@ let _pagoPreparado=null; // {tipo:'abono'|'completo', monto}
 function prepararPago(tipo){
   const monto=tipo==='completo'
     ? (remActualId?remisiones.find(r=>r.id===remActualId)?.saldo||0 : _calcTotalFormulario())
-    : Math.round(parseFloat(document.getElementById('montoAbono').value||0)*100)/100;
+    : parseMonto(document.getElementById('montoAbono').value);
   if(monto<=0){toast('Ingresa un monto válido','err');return;}
   _pagoPreparado={tipo,monto};
   const label=tipo==='completo'?'✅ Pago completo: '+fmt(monto)+' MXN':'💛 Abono: '+fmt(monto)+' MXN';
@@ -6449,7 +6555,7 @@ async function registrarTodo(){
   // (la remisión puede registrarse a crédito sin método todavía).
   {
     const _chkPagadoPre=document.getElementById('checkPagado')?.checked;
-    const _montoPre=Math.round(parseFloat(document.getElementById('montoAbono')?.value||0)*100)/100;
+    const _montoPre=parseMonto(document.getElementById('montoAbono')?.value);
     const _hayPagoPre=_chkPagadoPre||(_pagoPreparado&&_pagoPreparado.tipo==='completo')||_montoPre>0;
     if(_hayPagoPre&&!document.getElementById('metodoAbono')?.value){
       toast('⚠️ Elige el método de pago (efectivo, transferencia…) antes de registrar','err',5000);
@@ -6473,7 +6579,7 @@ async function registrarTodo(){
   // registrar. No bloquea: puede ser una decisión tomada a propósito.
   try{
     const _chkPag=document.getElementById('checkPagado')?.checked;
-    const _montoPag=Math.round(parseFloat(document.getElementById('montoAbono')?.value||0)*100)/100;
+    const _montoPag=parseMonto(document.getElementById('montoAbono')?.value);
     const _totalVenta=_calcTot(activos,+(document.getElementById('descPct')?.value)||0).tot;
     const _seLiquida=_chkPag||(_pagoPreparado&&_pagoPreparado.tipo==='completo')||(_montoPag>0&&_montoPag>=_totalVenta-0.005);
     const _cliVenta=(document.getElementById('c_nombre')?.value||'').trim();
@@ -6528,7 +6634,7 @@ async function registrarTodo(){
     // 2) Aplicar pago: checkbox "PAGO COMPLETO" o monto en el campo (vía función única).
     //    El guard `estado!=='pagado'` evita el doble-pago si onCheckPagado ya liquidó.
     const chkPagado=document.getElementById('checkPagado')?.checked;
-    const montoInput=Math.round(parseFloat(document.getElementById('montoAbono')?.value||0)*100)/100;
+    const montoInput=parseMonto(document.getElementById('montoAbono')?.value);
     const _metAbono=document.getElementById('metodoAbono')?.value||'Efectivo';  // cómo se pagó (separado de Condiciones de pago)
     const _notAbono=document.getElementById('notasAbono')?.value||'';
     if(remActualId){
@@ -6997,6 +7103,9 @@ function _marcarFallaERP(rem){
     guardarSeguro('fallas_erp',JSON.stringify(l));
     if(typeof guardarEventoSync==='function')guardarEventoSync({folio:rem.folio,operacion:'ERP_FALLO',resultado:'ERROR',detalle:'La remisión no llegó al ERP.'});
   }
+  // MC-06: prende el badge de ⚠ Excepciones -- ya no depende del contador de
+  // "sin enviar" para avisarse, así que se enciende aquí mismo.
+  if(typeof _actualizarBadgeExcepciones==='function')_actualizarBadgeExcepciones(_totalExcepciones());
   toast('⚠️ '+rem.folio+': guardada, pero NO llegó al ERP. Toca el contador para reintentar.','warn',6000);
 }
 function _limpiarFallaERP(id){
@@ -7004,6 +7113,7 @@ function _limpiarFallaERP(id){
   if(n.length!==l.length){
     guardarSeguro('fallas_erp',JSON.stringify(n));
     if(typeof guardarEventoSync==='function'){const f=l.find(x=>String(x.id)===String(id));guardarEventoSync({folio:f?f.folio:'',operacion:'ERP_REINTENTO_OK',resultado:'OK'});}
+    if(typeof _actualizarBadgeExcepciones==='function')_actualizarBadgeExcepciones(_totalExcepciones());
   }
 }
 function _reintentarERP(){
@@ -7011,7 +7121,9 @@ function _reintentarERP(){
 }
 
 // Contador SIEMPRE visible: muestra "✓ Al día" en verde, o "⚠️ N sin enviar" en naranja.
-// Cuenta las 6 colas + las ventas que no llegaron al ERP. Toca → pantalla Estado.
+// Cuenta las 6 colas de envío. Toca → pantalla Estado. MC-06: las fallas del ERP
+// ya NO se suman aquí (se avisan aparte, ver _actualizarBadgeExcepciones), pero
+// siguen visibles en la pantalla Estado (verEstado) y en ⚠ Excepciones.
 function actualizarBadgePendientes(){
   const total=_pendientesTotal();
   const b=document.getElementById('badgePendientes');
@@ -7026,7 +7138,14 @@ function actualizarBadgePendientes(){
     }
   }
   _revisarFallas();
+  _actualizarBadgeExcepciones(_totalExcepciones());
   actualizarPanelConexion();
+}
+// MC-06: excepciones = alertas del servidor + fallas locales "no llegó al ERP".
+// Antes solo el servidor prendía el badge de ⚠ Excepciones; una falla puramente
+// local (sin conexión al momento de exportar) no encendía nada ahí.
+function _totalExcepciones(){
+  return leerSeguro('excepciones_activas',[]).length+_fallasERP().length;
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -7187,7 +7306,7 @@ async function _revisarExcepciones(){
     const claves=new Set(alertas.map(a=>a.clave));
     const clavesPrevias=_ultimasClavesAlertas;
     _ultimasClavesAlertas=claves;
-    _actualizarBadgeExcepciones(alertas.length);
+    _actualizarBadgeExcepciones(_totalExcepciones());
     if(!clavesPrevias)return; // primera lectura de la sesión: no notificar retroactivo
     const nuevasAltas=alertas.filter(a=>a.severidad==='ALTA'&&!clavesPrevias.has(a.clave));
     if(nuevasAltas.length){
@@ -7203,14 +7322,25 @@ function abrirExcepciones(){
   document.getElementById('ovExcepciones').classList.add('open');
   const body=document.getElementById('excepcionesBody');
   const alertas=leerSeguro('excepciones_activas',[]);
-  if(!alertas.length){ body.innerHTML='Sin excepciones activas.'; return; }
-  body.innerHTML=alertas.map(a=>`
+  // MC-06: las fallas locales "no llegó al ERP" ahora se muestran aquí también,
+  // no solo en la pantalla Estado -- antes este modal solo enseñaba lo que
+  // mandaba el servidor y la falla local quedaba fuera de vista.
+  const erpF=_fallasERP();
+  if(!alertas.length&&!erpF.length){ body.innerHTML='Sin excepciones activas.'; return; }
+  const erpHtml=erpF.map(f=>`
+    <div style="padding:10px;margin-bottom:8px;border-radius:8px;background:#fff0f0;border:1px solid #fecaca">
+      <div style="font-weight:700;color:#c0392b">✕ No llegó al ERP — ${esc(f.folio||f.id)}</div>
+      <div style="font-size:11.5px;margin-top:3px">${f.cliente?esc(f.cliente):'Venta guardada, pendiente de exportar al ERP.'}</div>
+      <button class="btn" style="margin-top:6px;padding:4px 8px;font-size:11px" onclick="_reintentarERP();setTimeout(()=>{actualizarBadgePendientes();abrirExcepciones();},1500)">🔄 Reintentar</button>
+    </div>`).join('');
+  const alertasHtml=alertas.map(a=>`
     <div style="padding:10px;margin-bottom:8px;border-radius:8px;background:${a.severidad==='ALTA'?'#fff0f0':'#FFF9E6'};border:1px solid ${a.severidad==='ALTA'?'#fecaca':'#FDE68A'}">
       <div style="font-weight:700;color:${a.severidad==='ALTA'?'#c0392b':'#8a6d00'}">${a.severidad==='ALTA'?'✕':'⚠'} ${esc(a.tipo)} — ${esc(a.folio)}</div>
       <div style="font-size:11.5px;margin-top:3px">${esc(a.detalle||'')}</div>
       <div style="font-size:10.5px;color:var(--muted);margin-top:3px">Detectada: ${a.primeraVez||''} · Última vez: ${a.ultimaVez||''}</div>
       <button class="btn" style="margin-top:6px;padding:4px 8px;font-size:11px" onclick="closeOv('ovExcepciones');abrirTrazabilidad('${escAttr(a.folio)}')">🔎 Ver trazabilidad</button>
     </div>`).join('');
+  body.innerHTML=erpHtml+alertasHtml;
 }
 
 // Dropdown "☰ Más" del toolbar (Negocio, Cierre del día, Simulador, Mi empresa,
@@ -7344,8 +7474,48 @@ function _mostrarConfirmacion(rem){
     if(det)det.innerHTML='Remisión <strong>'+rem.folio+'</strong>'+desglose+
       'Saldo pendiente: <strong style="color:#c0392b">'+fmt(rem.saldo)+' MXN</strong>';
   }
+  // MC-03: casillas SIEMPRE desmarcadas de fábrica -- nunca heredan el estado
+  // de la remisión anterior que se haya confirmado en esta misma sesión.
+  const chkC=document.getElementById('chkCorreoConfirm'); if(chkC)chkC.checked=false;
+  const chkW=document.getElementById('chkWhatsappConfirm'); if(chkW)chkW.checked=false;
+  const estadoTxt=document.getElementById('correoConfirmEstado');
+  if(estadoTxt){
+    const info=rem.correoEnviadoInfo;
+    estadoTxt.textContent=info
+      ? ('Ya se envió el '+new Date(info.ts).toLocaleDateString('es-MX')+' a '+info.email)
+      : '';
+  }
   document.getElementById('ovConfirmReg').classList.add('open');
 }
+// MC-03: se lee el estado de las casillas ANTES de cerrar el popup (closeOv no
+// destruye el DOM, pero así queda explícito qué se pidió justo en este click --
+// nunca un checkbox que se quedó marcado de una confirmación anterior).
+let _correoPendienteEnvio=false, _whatsappPendienteEnvio=false, _trasCapturarCorreoDescargar=false;
+function _descargarDesdeConfirmacion(){
+  const correoMarcado=!!document.getElementById('chkCorreoConfirm')?.checked;
+  const whatsappMarcado=!!document.getElementById('chkWhatsappConfirm')?.checked;
+  const email=(document.getElementById('c_email')?.value||'').trim();
+  if(correoMarcado&&!_correoValido(email)){
+    // Doc MC-03: si el cliente no tiene correo, se captura aquí mismo y el
+    // envío se reanuda solo al guardar -- sin perder la intención del check.
+    toast('Este cliente no tiene correo capturado — agrégalo para poder enviarlo','warn',4500);
+    _correoPendienteEnvio=true;
+    _whatsappPendienteEnvio=whatsappMarcado;
+    _trasCapturarCorreoDescargar=true;
+    abrirMasDatosCliente();
+    return;
+  }
+  _correoPendienteEnvio=correoMarcado;
+  _whatsappPendienteEnvio=whatsappMarcado;
+  closeOv('ovConfirmReg');
+  descargarPDFSiRegistrado();
+}
+// Si el usuario cierra "Más datos" SIN guardar (✕ o toca fuera), la intención de
+// enviar queda cancelada -- nunca se dispara un envío en un guardado posterior
+// de un cliente distinto.
+document.getElementById('ovNuevoCliente')?.addEventListener('click', e=>{
+  if(e.target.id==='ovNuevoCliente') _trasCapturarCorreoDescargar=false;
+});
 
 function toggleFirma(){
   const sec=document.getElementById('firmaSection');
@@ -7418,8 +7588,29 @@ document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.
 function _actualizarPreviewMonto(inputId,previewId){
   const inp=document.getElementById(inputId), prev=document.getElementById(previewId);
   if(!inp||!prev)return;
-  const n=parseFloat(inp.value);
+  // MC-04: "PENDIENTE" no es un monto -- se avisa aparte de "= $x MXN".
+  if(/^pendiente$/i.test((inp.value||'').trim())){
+    prev.textContent='Sin pago — se registra a crédito';
+    prev.style.color='#E67E22';
+    return;
+  }
+  prev.style.color='';
+  const n=parseMonto(inp.value);
   prev.textContent=(n>0)?('= '+fmt(n)+' MXN'):'';
+}
+// MC-04: reformatea con $ y comas EN VIVO cada vez que se escribe, sin romper
+// "PENDIENTE" (formatearMontoTexto la deja intacta). El cursor se manda al
+// final -- este campo se llena de un tirón (no se edita a media cadena), así
+// que no hace falta preservar la posición exacta del cursor.
+function _onInputMontoAbono(inp){
+  if(!inp)return;
+  const antes=inp.value;
+  const formateado=formatearMontoTexto(antes);
+  if(formateado!==antes){
+    inp.value=formateado;
+    try{inp.setSelectionRange(formateado.length,formateado.length);}catch(_){}
+  }
+  _actualizarPreviewMonto('montoAbono','montoAbonoFmt');
 }
 let _toastTimer=null;
 function toast(msg,type='',dur=2800){const t=document.getElementById('toast');clearTimeout(_toastTimer);t.textContent=msg;t.className='toast'+(type?' '+type:'');t.classList.add('show');if(dur>0)_toastTimer=setTimeout(()=>t.classList.remove('show'),dur);}
@@ -8452,7 +8643,10 @@ function _construirPDFCot(data){
 
   const rxD=ML+hW+4;
   let rightH=10;
-  [[data.d_asesor],[data.d_pago],[data.d_entrega],[data.d_lugar]].forEach(([v])=>{if(v)rightH+=lineH*Math.max(1,lh_(v,hW))+1;});
+  // MC-05: teléfono del asesor impreso junto a su nombre, si está capturado en OPCIONES_ASESOR_TEL.
+  const _dAsesorTelObjCot=OPCIONES_ASESOR_TEL[data.d_asesor]||{};
+  const dAsesorTelLineaCot=[_dAsesorTelObjCot.tel,_dAsesorTelObjCot.tel2].filter(Boolean).join('  |  ');
+  [[data.d_asesor],[dAsesorTelLineaCot],[data.d_pago],[data.d_entrega],[data.d_lugar]].forEach(([v])=>{if(v)rightH+=lineH*Math.max(1,lh_(v,hW))+1;});
   const telLine=[empresa.tel,empresa.tel2].filter(Boolean).join('  ');
   const emisorVals=[empresa.rfc,empresa.dir,telLine].filter(Boolean);
   if(emisorVals.length){ rightH+=7; emisorVals.forEach(v=>{rightH+=lineH*Math.max(1,lh_(v,hW))+1;}); } // separador + header emisor + campos
@@ -8504,7 +8698,7 @@ function _construirPDFCot(data){
     const lines=doc.splitTextToSize(String(val),maxW);doc.text(lines,rxD+40,cy);
     cy+=lineH*lines.length+1;
   };
-  rR('Asesor',data.d_asesor);rR('Condiciones de pago',data.d_pago);rR('Entrega estimada',data.d_entrega);rR('Lugar de entrega',data.d_lugar);
+  rR('Asesor',data.d_asesor);rR('Tel. asesor',dAsesorTelLineaCot);rR('Condiciones de pago',data.d_pago);rR('Entrega estimada',data.d_entrega);rR('Lugar de entrega',data.d_lugar);
   cy+=1;
   doc.setDrawColor(...BRD).setLineWidth(0.2).line(rxD+3,cy,rxD+hW-3,cy);cy+=3.5;
   // DATOS DEL EMISOR: solo si hay al menos un dato (sin encabezado huérfano).

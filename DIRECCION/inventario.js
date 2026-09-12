@@ -1,5 +1,5 @@
 // Inventario en Dirección (F4 del plan de diseño, 2026-09-11). Viene de
-// 12.- GASTOS E INVENTARIO/gastos-inventario.html -- mismo conteo, mismo
+// 12.- GASTOS/gastos.html -- mismo conteo, mismo
 // orden de pantallas y botones, misma lógica (ERI, mermas, ceros repetidos,
 // ranking, cola offline, teorico_ref/referencia_ts). Lo que cambia:
 //   · Autorización: sesión con PIN de Dirección, no el API_TOKEN compartido

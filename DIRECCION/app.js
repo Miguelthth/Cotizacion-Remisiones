@@ -142,7 +142,7 @@ if ('serviceWorker' in navigator) {
   // caso se difiere hasta que la app vuelva a estar inactiva.
   // huboControlador: el primer controllerchange (instalación inicial, sin SW
   // previo) no es una "actualización" -- no se registra como tal, mismo
-  // patrón que 12.- GASTOS E INVENTARIO/gastos-inventario.html.
+  // patrón que 12.- GASTOS/gastos.html.
   let huboControlador = !!navigator.serviceWorker.controller;
   let recargaPendiente = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -171,7 +171,7 @@ if ('serviceWorker' in navigator) {
 // que sw.js usa como nombre de caché ('sumetec-direccion-<código>'). "Última
 // actualización" es la última vez que un service worker NUEVO tomó control
 // en ESTE dispositivo -- si nunca ha habido una, se avisa en vez de mentir.
-// Mismo patrón que 2.- COTIZADOR/remision.html y 12.- GASTOS E INVENTARIO.
+// Mismo patrón que 2.- COTIZADOR/remision.html y 12.- GASTOS.
 function _mostrarVersionInstalada() {
   const codigo = (typeof VERSION_CODIGO !== 'undefined' && VERSION_CODIGO) ? VERSION_CODIGO : null;
   const v = (typeof VERSION_DEPLOY !== 'undefined' && VERSION_DEPLOY)

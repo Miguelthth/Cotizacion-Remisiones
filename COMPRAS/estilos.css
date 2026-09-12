@@ -1,0 +1,32 @@
+/* estilos.css -- SOLO lo específico de Compras (layout, historial, IA
+   tocada). Los colores, la letra, botones, campos y tarjetas base vienen de
+   sumetec-tema.css (generado del ERP por 16.- IDENTIDAD-NEGOCIO/
+   generar_tema.py -- no editar ese archivo a mano). Copiado y recortado de
+   14.- SUMETEC DIRECCION/estilos.css (sin nav, sin denominaciones de
+   Corte -- Compras es una sola pantalla). */
+
+body { max-width: 560px; margin: 0 auto; padding: 0 0 32px; }
+
+.hoja { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+.fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+/* ── Compra: dato leído por la IA ── */
+.ia-tocado { background: color-mix(in srgb, var(--sm-aviso) 16%, var(--sm-control-fondo)); border-color: var(--sm-aviso) !important; }
+
+/* ── Compras: líneas y pagos ── */
+#lineas-compra, #pagos-compra { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 8px; }
+#lineas-compra li, #pagos-compra li { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; align-items: center; }
+#lineas-compra li { grid-template-columns: 1fr 2fr 1fr 1fr auto; }
+#lineas-compra input, #pagos-compra input, #pagos-compra select { min-width: 0; }
+
+/* ── Compras: historial reciente ── */
+.historial-compras { list-style: none; padding: 0; margin: .5rem 0 0; display: flex; flex-direction: column; gap: .5rem; }
+.historial-item {
+  border: 1px solid var(--sm-line); border-radius: var(--sm-r-sm); padding: .6rem .8rem;
+  display: flex; flex-wrap: wrap; gap: .4rem .8rem; align-items: center;
+}
+.historial-item .proveedor { font-weight: 600; }
+.historial-item .fecha { color: var(--sm-muted); width: 100%; font-size: .85rem; }
+.leyenda { color: var(--sm-muted); font-size: .85rem; margin: .3rem 0; }
+.vacio { color: var(--sm-muted); }

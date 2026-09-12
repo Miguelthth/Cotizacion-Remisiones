@@ -15,7 +15,7 @@ let DENOMINACIONES_MXN = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1, 0.5];
 // efectivo del día entero salía como "sobrante" -- y la fila quedaba
 // archivada en CortesCaja con la fecha equivocada. Caja y Compras tenían el
 // mismo defecto. Mismo arreglo que Gastos ya traía (_fechaLocal_ en
-// gastos-inventario.html). Vive aquí porque el Corte es quien más duele.
+// gastos.html). Vive aquí porque el Corte es quien más duele.
 function _fechaLocalDireccion_(d) {
   d = d || new Date();
   const p = n => String(n).padStart(2, '0');

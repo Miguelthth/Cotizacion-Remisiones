@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#023561">
+  <link rel="manifest" href="manifest.json">
+  <!-- tema-inicial.js va ANTES del CSS (elige día/noche sin parpadeo) --
+       mismo tema del ERP, generado por 16.- IDENTIDAD-NEGOCIO/generar_tema.py.
+       No editar sumetec-tema.css ni tema-inicial.js a mano. -->
+  <script src="tema-inicial.js"></script>
+  <link rel="stylesheet" href="sumetec-tema.css">
+  <link rel="stylesheet" href="estilos.css">
+  <title>SUMETEC Compras</title>
+</head>
+<body>
+  <header class="sm-barra">
+    <i class="bi bi-cart3" aria-hidden="true"></i>
+    <span class="sm-barra-titulo">SUMETEC Compras</span>
+    <span id="estado" class="sm-chip" style="margin-left:auto">Sin conexión</span>
+    <button type="button" class="btn-barra" onclick="alternarTemaSumetec()" aria-label="Cambiar a modo claro u oscuro"><i class="bi bi-moon-stars"></i></button>
+    <button type="button" class="btn-barra" id="badgeVersion" onclick="_mostrarVersionInstalada()" title="Ver actualización de software" aria-label="Ver actualización de software"><i class="bi bi-info-circle"></i></button>
+  </header>
+
+  <div class="hoja">
+    <main id="app"></main>
+  </div>
+
+  <dialog id="vincular">
+    <form method="dialog">
+      <h2>Vincular este teléfono</h2>
+      <label class="form-label" for="url">URL de Drive</label>
+      <input id="url" class="form-control" placeholder="URL de Drive">
+      <label class="form-label" for="codigo">Código de 6 dígitos</label>
+      <input id="codigo" class="form-control" inputmode="numeric" placeholder="Código de 6 dígitos">
+      <label class="form-label" for="pin">PIN privado</label>
+      <input id="pin" class="form-control" type="password" inputmode="numeric" placeholder="PIN privado">
+      <button id="enlazar" class="btn btn-success btn-bloque" value="default"><i class="bi bi-check-circle"></i> Vincular</button>
+    </form>
+  </dialog>
+
+  <dialog id="pin-modal">
+    <form method="dialog">
+      <h2>PIN privado</h2>
+      <label class="form-label" for="pin-modal-input">PIN</label>
+      <input id="pin-modal-input" class="form-control" type="password" inputmode="numeric" autocomplete="off" required>
+      <p id="pin-modal-error" class="text-rojo" role="alert"></p>
+      <div class="fila">
+        <button value="cancel" class="btn btn-outline-secondary" formnovalidate>Cancelar</button>
+        <button value="ok" class="btn btn-success"><i class="bi bi-check-circle"></i> Continuar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="version.js"></script>
+  <script src="seguridad.js"></script>
+  <script src="compras.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

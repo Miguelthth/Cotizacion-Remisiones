@@ -1,7 +1,7 @@
 {
   "name": "SUMETEC Gastos",
   "short_name": "Gastos",
-  "start_url": "./gastos-inventario.html",
+  "start_url": "./gastos.html",
   "display": "standalone",
   "background_color": "#023561",
   "theme_color": "#023561",

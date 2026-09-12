@@ -98,6 +98,35 @@ function tasaIvaLbl(arr){
 // que NUNCA aparezca "$NaN" en pantalla o en un PDF.
 function fmt(n){const x=Number.isFinite(+n)?+n:0;return'$'+x.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',')}
 
+// MC-04: parser ÚNICO del campo de monto a abonar. Antes el input era type=number
+// (sin $ ni comas); al volverlo texto para poder mostrar "$1,234.56" mientras se
+// escribe, parseFloat() ya no basta -- "1,234.56" con parseFloat da 1. Todo el
+// código que lee montoAbono debe pasar por AQUÍ, nunca por su propio parseFloat.
+// "PENDIENTE" no es un monto -- es la señal de que se registra SIN pago (a
+// crédito), así que vale 0 a propósito.
+function parseMonto(v){
+  if(v==null)return 0;
+  const s=String(v).trim();
+  if(!s||/^pendiente$/i.test(s))return 0;
+  const limpio=s.replace(/[^0-9.]/g,'');
+  const n=parseFloat(limpio);
+  return Number.isFinite(n)?Math.round(n*100)/100:0;
+}
+// Formatea lo que el usuario escribe con "$" y comas EN VIVO (doc COTIZADOR:
+// "$ y comas mientras se escribe"). "PENDIENTE" se deja tal cual, sin tocarlo.
+// Puramente texto->texto -- parseMonto() sigue leyendo el resultado sin problema.
+function formatearMontoTexto(v){
+  const s=String(v==null?'':v);
+  if(/^pendiente$/i.test(s.trim()))return s;
+  const limpio=s.replace(/[^0-9.]/g,'');
+  if(!limpio)return '';
+  const partes=limpio.split('.');
+  const entero=(partes[0].replace(/^0+(?=\d)/,'')||'0');
+  const dec=partes.length>1?'.'+partes.slice(1).join('').slice(0,2):'';
+  const conComas=entero.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return '$'+conComas+dec;
+}
+
 // Importe a letras con centavos: 232 → "DOSCIENTOS TREINTA Y DOS PESOS 00/100 MXN"
 // H6/H7: protege contra valores no finitos y negativos. `words` cubre 0…999,999,999;
 // arriba de eso degrada de forma legible (no devuelve "undefined").
@@ -396,5 +425,6 @@ if (typeof module !== 'undefined' && module.exports) {
                       descuentoValido, renglonValido, telWA, msgCobroWA, tasaIvaLbl,
                       rentabilidadPorProducto, simulaEscenarioPrecio,
                       parseFechaMX, pagosValidosDe, corteDeCaja, costosQueSubieron,
-                      deudaCliente, diasPagoPorCliente, utilidadOperacion };
+                      deudaCliente, diasPagoPorCliente, utilidadOperacion,
+                      parseMonto, formatearMontoTexto };
 }

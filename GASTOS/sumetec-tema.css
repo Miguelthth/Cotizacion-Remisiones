@@ -1,0 +1,439 @@
+/* sumetec-tema.css -- GENERADO por 16.- IDENTIDAD-NEGOCIO/generar_tema.py.
+   No editar a mano. Colores: erp-estilo.css y liquid-glass-theme.css del ERP.
+   Letra: ibm-plex.css del ERP. Iconos: bootstrap-icons.min.css del ERP.
+   Piezas: 16.- IDENTIDAD-NEGOCIO/tema/componentes.css.
+   Para cambiar algo, cambialo alla y vuelve a correr el script. */
+
+/* ── Colores del ERP ── */
+:root {
+  --sm-bg: #eef2f6;
+  --sm-navy: #023561;
+  --sm-accent: #0d4f86;
+  --sm-green: #1f8a2d;
+  --sm-ink: #17242b;
+  --sm-muted: #616f7f;
+  --sm-green-texto: #057448;
+  --sm-aviso: #8a5800;
+  --sm-line: #b2c3d5;
+  --sm-r-xs: 6px;
+  --sm-r-sm: 8px;
+  --sm-r-md: 14px;
+  --sm-r-pill: 999px;
+  --sm-radius: var(--sm-r-md);
+  --sm-surface: #ffffff;
+  --sm-surface-2: #f5f8fb;
+  --sm-border-soft: #b2c3d4;
+  --sm-body-text: #2a3947;
+  --sm-th-text: #616f7f;
+  --sm-icon-muted: #8595a7;
+  --sm-chart-1: #0d4f86;
+  --sm-chart-2: #1f8a2d;
+  --sm-chart-3: #b8790d;
+  --sm-chart-4: #bc2f2f;
+  --sm-chart-5: #0d7d74;
+  --sm-chart-6: #6d34d6;
+  --sm-chart-7: #c4551f;
+  --sm-chart-8: #3d5a75;
+  --sm-chart-9: #0f7a5f;
+  --sm-chart-10: #8a6a1f;
+  --sm-motion-fast: 110ms;
+  --sm-motion-standard: 180ms;
+  --sm-motion-notice: 240ms;
+  --sm-motion-large: 400ms;
+  --sm-motion-ease: cubic-bezier(.2, .8, .2, 1);
+  --sm-surface-elevated: #ffffff;
+  --sm-surface-glow: rgba(31, 138, 45, .08);
+  --sm-shadow-sereno: 0 12px 30px rgba(9, 32, 53, .07), 0 1px 2px rgba(9, 32, 53, .06);
+  --sm-shadow-sereno-hover: 0 16px 36px rgba(9, 32, 53, .11), 0 1px 2px rgba(9, 32, 53, .08);
+  --sm-luz-alta: transparent;
+  --sm-motion-expressive: 360ms;
+  --sm-motion-feedback: 240ms;
+  --sm-motion-curve: cubic-bezier(.16, 1, .3, 1);
+  --sm-nav-marca: #8fd633;
+  --sm-glass-brillo-barra: 66;
+  --sm-glass-brillo-erp: 42;
+  --sm-glass-transparencia: 54;
+  --sm-glass-desenfoque-menus: 50;
+  --sm-glass-orillas-erp: 42;
+  --sm-glass-transparencia-barra: 54;
+  --sm-glass-transparencia-tarjetas: 55;
+  --sm-glass-orillas-tarjetas: 48;
+  --sm-glass-movimiento-tarjetas: 2;
+  --sm-glass-filas-intensidad: 38;
+  --sm-glass-tablas-transparencia: 48;
+  --sm-glass-orillas-tablas: 48;
+  --sm-glass-superficie-fondo: rgb(255 255 255 / calc(.98 - var(--sm-glass-transparencia) * .003));
+  --sm-glass-tarjeta-fondo: rgb(255 255 255 / calc(.98 - var(--sm-glass-transparencia-tarjetas) * .004));
+  --sm-glass-superficie-borde: rgb(13 59 102 / calc(.27 + var(--sm-glass-transparencia) * .0012));
+  --sm-glass-superficie-sombra: rgb(8 43 70 / .16);
+  --sm-glass-superficie-blur: calc(2px + var(--sm-glass-desenfoque-menus) * .22px);
+  --sm-glass-superficie-luz: calc(var(--sm-glass-brillo-erp) * .0076);
+  --sm-glass-borde-luz: calc(var(--sm-glass-orillas-erp) * .0076);
+  --sm-glass-borde-luz-tarjetas: calc(var(--sm-glass-orillas-tarjetas) * .0096);
+  --sm-glass-resplandor-tarjetas: calc(var(--sm-glass-orillas-tarjetas) * .18px);
+  --sm-glass-nav-fondo: linear-gradient(180deg, rgb(2 53 97 / calc(.82 - var(--sm-glass-transparencia-barra) * .0077)), rgb(13 59 102 / calc(.80 - var(--sm-glass-transparencia-barra) * .0075)));
+  --sm-glass-nav-borde: rgb(235 248 255 / calc(.20 + var(--sm-glass-brillo-barra) * .0036));
+  --sm-glass-nav-blur: calc(34px - var(--sm-glass-transparencia-barra) * .32px);
+  --sm-glass-nav-luz: calc(.08 + var(--sm-glass-brillo-barra) * .0044);
+  --sm-glass-nav-reflejo: rgb(213 241 255 / calc(.10 + var(--sm-glass-brillo-barra) * .004));
+}
+:root:not([data-tema="oscuro"]) {
+  color-scheme: light;
+  --sm-glass-ink-dia: #142b3c;
+  --sm-glass-control-dia: rgb(255 255 255 / .94);
+}
+:root[data-tema="oscuro"] {
+  --sm-bg: #08090a;
+  --sm-navy: #6fe093;
+  --sm-accent: #34c759;
+  --sm-green: #8fd633;
+  --sm-green-texto: #8fd633;
+  --sm-ink: #eef0f2;
+  --sm-muted: #999b9e;
+  --sm-aviso: #b37100;
+  --sm-line: rgba(255,255,255,.10);
+  --sm-surface: #0f1011;
+  --sm-surface-2: #1c1d1f;
+  --sm-border-soft: rgba(255,255,255,.14);
+  --sm-body-text: #dadbdd;
+  --sm-th-text: #999b9e;
+  --sm-icon-muted: #797b7e;
+  --sm-lime: #a8e60a;
+  --sm-panel-border: rgba(255,255,255,.08);
+  --sm-panel-shadow: 0 8px 32px rgba(0,0,0,.35);
+  --sm-chart-1: #5aa9e6;
+  --sm-chart-2: #8fd633;
+  --sm-chart-3: #f0b429;
+  --sm-chart-4: #f2686c;
+  --sm-chart-5: #3fb8c9;
+  --sm-chart-6: #b490f5;
+  --sm-chart-7: #ff9f6e;
+  --sm-chart-8: #c9d7e4;
+  --sm-chart-9: #7fd1b9;
+  --sm-chart-10: #e8c46a;
+  --sm-surface-elevated: #151a20;
+  --sm-surface-glow: rgba(168, 230, 10, .075);
+  --sm-shadow-sereno: 0 16px 34px rgba(0, 0, 0, .24), 0 1px 2px rgba(0, 0, 0, .34);
+  --sm-shadow-sereno-hover: 0 20px 42px rgba(0, 0, 0, .32), 0 1px 2px rgba(0, 0, 0, .4);
+  --sm-luz-alta: rgba(255, 255, 255, .055);
+  --sm-nav-marca: var(--sm-lime, #a8e60a);
+  --sm-glass-superficie-fondo: rgb(15 16 17 / calc(.96 - var(--sm-glass-transparencia) * .003));
+  --sm-glass-tarjeta-fondo: rgb(21 26 32 / calc(.96 - var(--sm-glass-transparencia-tarjetas) * .004));
+  --sm-glass-superficie-borde: rgb(205 229 247 / calc(.08 + var(--sm-glass-transparencia) * .001));
+  --sm-glass-superficie-sombra: rgb(0 0 0 / .34);
+  --sm-glass-nav-fondo: linear-gradient(180deg, rgb(2 37 68 / calc(.82 - var(--sm-glass-transparencia-barra) * .0077)), rgb(8 43 73 / calc(.80 - var(--sm-glass-transparencia-barra) * .0075)));
+}
+
+/* ── Letra del ERP ── */
+@font-face {font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url(fonts/ibm-plex-mono-400.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face {font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url(fonts/ibm-plex-mono-500.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face {font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 600; font-display: swap; src: url(fonts/ibm-plex-mono-600.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+@font-face {font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 400 700; font-stretch: 100%; font-display: swap; src: url(fonts/ibm-plex-sans-variable.woff2) format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;}
+
+/* ── Iconos del ERP ── */
+@font-face {font-display:block;font-family:bootstrap-icons;src:url("fonts/bootstrap-icons.woff2") format("woff2")}
+.bi::before,[class*=" bi-"]::before,[class^=bi-]::before {display:inline-block;font-family:bootstrap-icons!important;font-style:normal;font-weight:400!important;font-variant:normal;text-transform:none;line-height:1;vertical-align:-.125em;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.bi-speedometer2::before {content:"\f580"}
+.bi-cart3::before {content:"\f244"}
+.bi-cash-stack::before {content:"\f246"}
+.bi-calculator::before {content:"\f1e0"}
+.bi-box-seam::before {content:"\f1c7"}
+.bi-receipt::before {content:"\f50f"}
+.bi-info-circle::before {content:"\f431"}
+.bi-wifi::before {content:"\f61c"}
+.bi-wifi-off::before {content:"\f61b"}
+.bi-cloud-arrow-up::before {content:"\f297"}
+.bi-camera::before {content:"\f220"}
+.bi-search::before {content:"\f52a"}
+.bi-plus-lg::before {content:"\f64d"}
+.bi-dash-lg::before {content:"\f63b"}
+.bi-trash::before {content:"\f5de"}
+.bi-x-lg::before {content:"\f659"}
+.bi-check-circle::before {content:"\f26b"}
+.bi-check-circle-fill::before {content:"\f26a"}
+.bi-exclamation-triangle::before {content:"\f33b"}
+.bi-exclamation-triangle-fill::before {content:"\f33a"}
+.bi-moon-stars::before {content:"\f496"}
+.bi-sun::before {content:"\f5a2"}
+.bi-lock::before {content:"\f47b"}
+.bi-clock-history::before {content:"\f292"}
+.bi-arrow-repeat::before {content:"\f130"}
+.bi-printer::before {content:"\f501"}
+.bi-file-earmark-text::before {content:"\f38b"}
+.bi-pencil::before {content:"\f4cb"}
+.bi-send::before {content:"\f6c0"}
+.bi-list-check::before {content:"\f473"}
+.bi-arrow-left::before {content:"\f12f"}
+.bi-chevron-right::before {content:"\f285"}
+.bi-safe::before {content:"\f65a"}
+.bi-graph-down::before {content:"\f3f1"}
+.bi-slash-circle::before {content:"\f567"}
+.bi-trophy::before {content:"\f5e7"}
+.bi-download::before {content:"\f30a"}
+.bi-shop::before {content:"\f543"}
+
+/* ═══ Piezas del tema ERP para las apps de SUMETEC ══════════════════
+   Fuente: este archivo. Lo copia generar_tema.py dentro de
+   sumetec-tema.css, DESPUÉS de los colores que extrae del ERP.
+
+   Regla dura (la verifica tests/test_generar_tema.py): aquí NO se escribe
+   ningún color en hexadecimal. Todo sale de los tokens del ERP
+   (--sm-*, --sm-glass-*), o de rgb()/white para sombras y velos. Si una
+   pieza necesita un color que el ERP no tiene, primero va al ERP.
+
+   Cada regla replica una del ERP (erp-estilo.css / liquid-glass-theme.css)
+   con el mismo nombre de clase, para que el HTML de las apps se lea igual
+   que el del ERP. Lo que NO se trae: Bootstrap completo, la barra lateral,
+   el panel de ajustes del cristal y el anillo de luz que sigue al cursor
+   (necesita JS y en el teléfono no hay cursor).
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Superficie de captura: fondo y tinta que voltean con el tema ──
+   El ERP pinta botones y campos con --sm-glass-control-dia de día y con
+   una mezcla del cristal de noche (liquid-glass-theme.css). Aquí se
+   resuelve en DOS variables, para que .btn-primary / .btn-success puedan
+   ganarle a .btn con la misma especificidad, sin !important. */
+:root {
+  --sm-control-fondo: var(--sm-glass-control-dia);
+  --sm-control-tinta: var(--sm-glass-ink-dia);
+}
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+  --sm-control-fondo: color-mix(in srgb, var(--sm-glass-superficie-fondo) 92%, rgb(32 37 43));
+  --sm-control-tinta: var(--sm-ink);
+}
+
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  font-size: .875rem;
+  line-height: 1.45;
+  color: var(--sm-ink);
+  background-color: var(--sm-bg);
+  background-image:
+    radial-gradient(760px circle at 96% -8%, var(--sm-surface-glow), transparent 52%),
+    radial-gradient(620px circle at 4% 112%, rgb(13 79 134 / .045), transparent 58%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color .25s ease, color .2s ease;
+}
+h1, h2, h3, h4, h5, h6 { color: var(--sm-ink); font-weight: 700; margin: 0 0 .6rem; }
+h1 { font-size: 20px; }
+h2 { font-size: 16px; }
+h5 { font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--sm-navy); }
+a { color: var(--sm-accent); }
+.num, td, th, input[type="number"] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+.num { text-align: right; }
+.mono, code { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.text-muted { color: var(--sm-muted); }
+.text-verde { color: var(--sm-green-texto); }
+.text-aviso { color: var(--sm-aviso); }
+.text-rojo { color: var(--sm-chart-4); }
+:focus-visible { outline: 2px solid var(--sm-accent); outline-offset: 2px; }
+
+/* ── Barra superior: la barra lateral del ERP, puesta arriba ──
+   En el teléfono no hay barra lateral, así que la identidad de marca se
+   queda arriba. Son DOS capas, como en el ERP: el riel marino sólido de
+   .sidebar (erp-estilo.css, #062a49 a #04223c) y encima el cristal
+   --sm-glass-nav-fondo. Solo el cristal (medido 2026-09-11) queda al 40%
+   sobre el fondo claro con los valores de fábrica -- azul deslavado, y el
+   texto blanco casi no se lee. */
+.sm-barra {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 10px;
+  min-height: 56px; padding: 10px 16px;
+  color: white;
+  background: var(--sm-glass-nav-fondo), linear-gradient(180deg, rgb(6 42 73), rgb(4 34 60));
+  border-bottom: 1px solid var(--sm-glass-nav-borde);
+  -webkit-backdrop-filter: blur(var(--sm-glass-nav-blur)) saturate(150%);
+  backdrop-filter: blur(var(--sm-glass-nav-blur)) saturate(150%);
+  box-shadow: 0 10px 26px rgb(2 25 45 / .28), inset 0 1px 0 var(--sm-glass-nav-reflejo);
+}
+.sm-barra-titulo { font-weight: 600; font-size: 15px; letter-spacing: .01em; color: white; }
+.sm-barra .bi { font-size: 17px; }
+.sm-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600; padding: 3px 10px;
+  border-radius: var(--sm-r-pill);
+  color: white;
+  background: rgb(255 255 255 / .16);
+  border: 1px solid rgb(255 255 255 / .22);
+}
+.sm-barra .btn-barra {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 40px; min-height: 40px; padding: 0 8px;
+  color: white; background: transparent;
+  border: 1px solid rgb(255 255 255 / .22); border-radius: var(--sm-r-sm);
+  font: inherit; cursor: pointer;
+}
+
+/* ── Tarjetas (Instrumento Sereno + cristal de tarjetas) ── */
+.card {
+  color: var(--sm-ink);
+  background-color: var(--sm-glass-tarjeta-fondo);
+  border: 1px solid var(--sm-line);
+  border-radius: var(--sm-r-md);
+  box-shadow: var(--sm-shadow-sereno), inset 0 1px 0 var(--sm-luz-alta);
+  transition: border-color var(--sm-motion-standard) var(--sm-motion-ease),
+              box-shadow var(--sm-motion-standard) var(--sm-motion-ease),
+              background-color var(--sm-motion-standard) var(--sm-motion-ease);
+}
+:root[data-tema="oscuro"] .card { border-color: var(--sm-panel-border); }
+.card-header {
+  padding: 13px 16px;
+  font-size: 13.5px; font-weight: 600; color: var(--sm-ink);
+  background: color-mix(in srgb, var(--sm-surface-elevated) 92%, var(--sm-surface-2));
+  border-bottom: 1px solid var(--sm-line);
+  border-radius: calc(var(--sm-r-md) - 1px) calc(var(--sm-r-md) - 1px) 0 0;
+}
+.card-body { padding: 16px; }
+
+/* ── Botones ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 44px; padding: 8px 16px;
+  font: inherit; font-size: 13.5px; font-weight: 600;
+  color: var(--sm-control-tinta);
+  background-color: var(--sm-control-fondo);
+  border: 1px solid var(--sm-glass-superficie-borde);
+  border-radius: var(--sm-r-sm);
+  cursor: pointer;
+  transition: transform var(--sm-motion-fast) var(--sm-motion-ease),
+              box-shadow var(--sm-motion-standard) var(--sm-motion-ease),
+              background-color var(--sm-motion-standard) var(--sm-motion-ease),
+              border-color var(--sm-motion-standard) var(--sm-motion-ease);
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { color: white; background-color: var(--sm-accent); border-color: var(--sm-accent); }
+.btn-success { color: white; background-color: var(--sm-green); border-color: var(--sm-green); }
+.btn-danger { color: white; background-color: var(--sm-chart-4); border-color: var(--sm-chart-4); }
+.btn-outline-secondary { color: var(--sm-body-text); background-color: transparent; border-color: var(--sm-border-soft); }
+/* De noche los acentos del ERP son claros (verde #34c759, #8fd633, rojo
+   #f2686c): texto blanco encima no llega al contraste mínimo -- va la
+   tinta oscura del fondo. */
+:root[data-tema="oscuro"] .btn-primary,
+:root[data-tema="oscuro"] .btn-success,
+:root[data-tema="oscuro"] .btn-danger { color: var(--sm-bg); }
+.btn-bloque { display: flex; width: 100%; }
+
+/* ── Campos ── */
+.form-label {
+  display: block; margin-bottom: 4px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--sm-th-text);
+}
+.form-control, .form-select {
+  display: block; width: 100%; min-height: 44px; padding: 8px 12px;
+  font: inherit; font-size: 13.5px;
+  color: var(--sm-control-tinta);
+  background-color: var(--sm-control-fondo);
+  border: 1px solid var(--sm-border-soft);
+  border-radius: var(--sm-r-sm);
+  transition: border-color var(--sm-motion-fast) var(--sm-motion-ease),
+              box-shadow var(--sm-motion-standard) var(--sm-motion-ease),
+              background-color var(--sm-motion-standard) var(--sm-motion-ease);
+}
+.form-control:focus, .form-select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--sm-accent) 66%, white);
+  box-shadow: 0 0 0 .22rem color-mix(in srgb, var(--sm-accent) 15%, transparent);
+}
+/* `font: inherit` de arriba le gana a .mono (misma especificidad, va
+   después): un folio o UUID capturado salía en letra normal. */
+.form-control.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+/* En el teléfono, Safari acerca la pantalla si el campo mide menos de 16px. */
+@media (pointer: coarse) {
+  .form-control, .form-select { font-size: 16px; }
+}
+
+/* ── Tablas ──
+   .table-responsive (mismo nombre que en el ERP) envuelve la tabla: en el
+   teléfono una tabla de 4 columnas no cabe en 375px, y sin esto se corta
+   la última columna en vez de desplazarse de lado. */
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: inherit; }
+.table { width: 100%; border-collapse: collapse; color: var(--sm-body-text); }
+.table th {
+  padding: 9px 14px; text-align: left; white-space: nowrap;
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--sm-th-text);
+  background: var(--sm-surface-2);
+  border-bottom: 1px solid var(--sm-line);
+}
+.table td { padding: 9px 14px; font-size: 12.5px; vertical-align: middle; border-bottom: 1px solid var(--sm-line); }
+.table th.num, .table td.num { text-align: right; }
+
+/* ── Etiquetas (badge) ── */
+.badge {
+  display: inline-block; padding: .35em .75em;
+  font-size: 11px; font-weight: 600; letter-spacing: .01em;
+  border-radius: var(--sm-r-pill);
+  color: var(--sm-muted);
+  background: var(--sm-surface-2);
+}
+.badge.bg-success { color: var(--sm-green-texto); background: color-mix(in srgb, var(--sm-green) 14%, var(--sm-surface)); }
+.badge.bg-danger { color: var(--sm-chart-4); background: color-mix(in srgb, var(--sm-chart-4) 13%, var(--sm-surface)); }
+.badge.bg-warning { color: var(--sm-aviso); background: color-mix(in srgb, var(--sm-aviso) 14%, var(--sm-surface)); }
+.badge.bg-primary { color: var(--sm-accent); background: color-mix(in srgb, var(--sm-accent) 12%, var(--sm-surface)); }
+
+/* ── Avisos ── */
+.alert {
+  padding: 12px 14px;
+  color: var(--sm-ink);
+  background-color: var(--sm-glass-superficie-fondo);
+  border: 1px solid var(--sm-glass-superficie-borde);
+  border-left-width: 4px;
+  border-radius: var(--sm-r-sm);
+}
+.alert-info { border-left-color: var(--sm-accent); }
+.alert-success { border-left-color: var(--sm-green); }
+.alert-warning { border-left-color: var(--sm-aviso); }
+.alert-danger { border-left-color: var(--sm-chart-4); }
+
+/* ── Diálogos y mensajes flotantes: aquí SÍ hay contenido debajo, así que
+   llevan desenfoque (mismo criterio que el ERP del 2026-08-28). ── */
+dialog {
+  padding: 20px;
+  color: var(--sm-ink);
+  background-color: var(--sm-glass-superficie-fondo);
+  border: 1px solid var(--sm-glass-superficie-borde);
+  border-radius: var(--sm-r-md);
+  box-shadow: 0 18px 40px var(--sm-glass-superficie-sombra);
+  -webkit-backdrop-filter: blur(var(--sm-glass-superficie-blur)) saturate(130%);
+  backdrop-filter: blur(var(--sm-glass-superficie-blur)) saturate(130%);
+}
+dialog::backdrop { background: rgb(2 25 45 / .45); }
+.toast {
+  padding: 10px 14px;
+  color: var(--sm-ink);
+  background-color: var(--sm-glass-superficie-fondo);
+  border: 1px solid var(--sm-glass-superficie-borde);
+  border-radius: var(--sm-r-sm);
+  box-shadow: 0 10px 28px var(--sm-glass-superficie-sombra);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* ── Accesibilidad y respaldo ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+  .btn:active { transform: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sm-barra { background: rgb(2 53 97); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  :root[data-tema="oscuro"] .sm-barra { background: rgb(2 37 68); }
+  dialog, .toast, .alert { background-color: var(--sm-surface); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .sm-barra { background: rgb(2 53 97); }
+  :root[data-tema="oscuro"] .sm-barra { background: rgb(2 37 68); }
+  dialog, .toast { background-color: var(--sm-surface); }
+}
