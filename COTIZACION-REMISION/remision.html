@@ -3311,9 +3311,9 @@ async function sincronizarRemision(rem){
   const _revEnviada=+rem._rev||0;
   const _tot=_totalesERP(rem);
   const body={tipo:'remision',token:API_TOKEN,id:rem.id,folio:rem.folio,cliente:rem.cliente,fecha:rem.fecha,
-    total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),
+    total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),usuarioCapturo:_deviceLabel_(),
     resetPagos:!!rem._resetPagos, // borrón y cuenta nueva: limpia pagos viejos de este folio en el servidor
-    condicionesPago:(rem.data&&rem.data.d_pago)||'',
+    condicionesPago:(rem.data&&rem.data.d_pago)||'',asesor:(rem.data&&rem.data.d_asesor)||'',
     cotizacionOrigen:rem._cotizacionOrigen||'',origenVenta:rem.origen||'',
     items:_itemsERP(rem),subtotal:_tot.subtotal,descMonto:_tot.descMonto,ivaMonto:_tot.ivaMonto,ivaPct:_tot.ivaPct}; // #15: detalle+totales para el ERP
   try{
@@ -3421,7 +3421,7 @@ function _encolarRemision(rem){
   // asigna los folios REM- en el orden real) y `_try` (contador de intentos atorados).
   const idx=cola.findIndex(r=>String(r.id)===String(rem.id));
   const entrada={id:rem.id,folio:rem.folio,cliente:rem.cliente,fecha:rem.fecha,
-    total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),
+    total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),usuarioCapturo:_deviceLabel_(),
     ts:(idx>=0&&cola[idx].ts)||Date.now(),
     // Revisión del contenido local. El procesador solo marca `sincronizado` si la rev
     // que volvió del servidor sigue siendo la actual (ver procesarColaRemisiones).
@@ -3430,7 +3430,7 @@ function _encolarRemision(rem){
     // F-menor: antes condicionesPago solo viajaba en el POST del PDF -- una venta a
     // crédito 7/15/30 creada offline llegaba al Excel/ERP sin esa columna si el PDF
     // no se subía. El servidor ya la lee (datos.condicionesPago); solo faltaba mandarla.
-    condicionesPago:(rem.data&&rem.data.d_pago)||'',
+    condicionesPago:(rem.data&&rem.data.d_pago)||'',asesor:(rem.data&&rem.data.d_asesor)||'',
     // 2026-07-14: solo presente si esta remisión vino de "Convertir a Remisión".
     cotizacionOrigen:rem._cotizacionOrigen||'',origenVenta:rem.origen||'',
     items:_itemsERP(rem),subtotal:_tot.subtotal,descMonto:_tot.descMonto,ivaMonto:_tot.ivaMonto,ivaPct:_tot.ivaPct}; // #15
@@ -8055,7 +8055,7 @@ async function _procesarColaCotR(){
       // Hora de descarga (momento en que se generó la cotización) → col "Hora descarga" del Excel
       const _horaCot=new Date(entry.ts||Date.now()).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
       const body={tipo:'cotizacion',token:API_TOKEN,id:entry.id,folio,cliente:entry.cliente,
-        fecha:entry.fecha,total:entry.total,filename:fn,pdf:b64,device:_deviceLabel_(),
+        fecha:entry.fecha,total:entry.total,filename:fn,pdf:b64,device:_deviceLabel_(),usuarioCapturo:_deviceLabel_(),
         horaDescarga:_horaCot,
         items:_itemsDetalleCot(entry.data?.items),
         descPct:entry.data?.descPct||0,
