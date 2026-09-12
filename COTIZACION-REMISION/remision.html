@@ -602,7 +602,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
     </div>
     <div class="card">
       <div class="ch"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>Detalles de la Remisión</div>
-      <div class="fr"><span class="fl">Asesor</span><div class="fv"><select id="d_asesor" onchange="autosave()"><!-- opciones desde CONFIG: OPCIONES_ASESOR --></select></div></div>
+      <div class="fr"><span class="fl">Asesor</span><div class="fv"><select id="d_asesor" onchange="_mostrarTelAsesor('d_asesor','d_asesor_tel');autosave()"><!-- opciones desde CONFIG: OPCIONES_ASESOR --></select></div></div>
+      <div class="fr" id="d_asesor_tel_wrap" style="display:none"><span class="fl">Tel. asesor</span><div class="fv" id="d_asesor_tel"></div></div>
       <div class="fr"><span class="fl">Condiciones de pago</span><div class="fv"><select id="d_pago" onchange="autosave()"><!-- opciones desde CONFIG: OPCIONES_PAGO_REMISION --></select></div></div>
       <div id="emisorBox" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--green);margin-bottom:8px">Datos del Emisor</div>
@@ -816,16 +817,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
       <span style="font-size:22px;font-weight:800;color:#c0392b" id="prSaldo">$0.00</span>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:2px">
-      <input id="prMonto" type="number" inputmode="decimal" min="0.01" step="0.01"
-        placeholder="$ Monto a pagar" oninput="_actualizarPreviewMonto('prMonto','prMontoFmt')"
+      <input id="prMonto" type="text" inputmode="decimal" autocomplete="off"
+        placeholder="$ Monto a pagar"
         style="flex:1;border:2px solid var(--border);border-radius:10px;padding:12px;font-size:15px;font-family:inherit;outline:none"
-        onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'">
+        onfocus="this.style.borderColor='var(--green)'" oninput="_formatearMontoInput(this)" onblur="this.style.borderColor='var(--border)';_formatearMontoInput(this)">
       <button onclick="prPonertotal()"
         style="background:var(--navy);color:#fff;border:none;border-radius:10px;padding:12px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">
         ↓ Total
       </button>
     </div>
-    <div id="prMontoFmt" style="font-size:12px;color:var(--green);font-weight:700;margin-bottom:10px;min-height:16px"></div>
     <div style="margin-bottom:10px">
       <label style="font-size:11px;color:var(--muted);font-weight:600">Método de pago</label>
       <select id="prMetodo" style="width:100%;border:2px solid var(--border);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;margin-top:3px;background:#fff"><!-- opciones desde CONFIG: OPCIONES_METODO_PAGO --></select>
@@ -1379,7 +1379,14 @@ function reconciliarPendientes(){
 }
 
 // ── Conectividad & Device ID ──────────────────────────────────
-let isOnline=true,_hbTimer=null;
+let isOnline=true,_hbTimer=null,_hbEnCurso=false;
+// Con señal, un timeout del Apps Script es un problema de servidor, no una
+// desconexión del celular. Se guarda separado para que el aviso sea honesto.
+let ESTADO_HEARTBEAT='conectado';
+function _estadoHeartbeat({navegadorEnLinea,pingOk}){
+  if(!navegadorEnLinea)return 'sin_conexion';
+  return pingOk?'conectado':'servidor_lento';
+}
 // Token confirmado inválido por el servidor (distinto de "sin token" -- este SÍ
 // tiene texto pero el servidor lo rechaza). Mientras esté en true, heartbeat() no
 // vuelve a disparar las colas de reintento (pagos/remisiones/PDF) cada 10s -- de lo
@@ -1421,13 +1428,17 @@ function actualizarPanelConexion(){
   const catTs=localStorage.getItem('erp_catalogo_ts');
   const catTxt=catTs?('Publicado por el ERP: '+_frescuraTexto(catTs).txt.replace(/^actualizado /,''))
                     :'⚠️ El ERP todavía no ha publicado catálogo — revisa el token del Apps Script en Configuración del ERP';
-  if(!isOnline){
+  if(ESTADO_HEARTBEAT==='sin_conexion'||!isOnline){
     bar.classList.add('show');bar.classList.remove('warn');
     msg.innerHTML='📵 <b>Sin conexión</b> — todo se guarda en este celular y se enviará solo al volver la señal.'
       +(pend>0?' <b>⏳ '+pend+' pendiente(s)</b>':'')
       +'<div style="font-weight:400;opacity:.92;margin-top:3px;font-size:11px">💡 Muévete a una zona con señal · revisa datos móviles/WiFi · usa el botón de WhatsApp para avisar un cobro · puedes seguir registrando, nada se pierde.</div>'
       +'<div style="font-weight:400;opacity:.95;font-size:11px;margin-top:3px;background:rgba(0,0,0,.18);border-radius:6px;padding:3px 7px">🏷️ <b>Precios del catálogo:</b> '+catTxt+'</div>'
       +'<div style="font-weight:400;opacity:.8;font-size:10.5px;margin-top:2px">Última sincronización: '+fr+'</div>';
+  } else if(ESTADO_HEARTBEAT==='servidor_lento'){
+    bar.classList.add('show','warn');
+    msg.innerHTML='⚠️ <b>El servidor está lento o no responde</b> — tu celular sí tiene señal; los datos siguen guardados y se reintentará solo.'
+      +(pend>0?' <b>⏳ '+pend+' pendiente(s)</b>':'');
   } else if(TOKEN_INVALIDO_CONFIRMADO){
     // Banner FIJO en vez de un aviso que se repite solo cada 10s: se queda tal
     // cual (no vuelve a "sonar") hasta que se guarde un token distinto -- ver
@@ -1444,17 +1455,10 @@ function actualizarPanelConexion(){
       +'<div style="font-weight:400;opacity:.92;margin-top:3px;font-size:11px">💡 Si sigue igual mañana, revisa "Ejecuciones" en script.google.com dentro de tu proyecto de Apps Script.</div>';
   } else if(pend>0){
     bar.classList.add('show');bar.classList.add('warn');
-    const _pagos=leerSeguro('cola_offline',[]).length;
-    const _rems=leerSeguro('cola_remisiones',[]).length;
-    const _pdfs=leerSeguro('cola_pdf',[]).length;
-    const partes=[];
-    if(_rems)partes.push(_rems+' remisión'+(  _rems>1?'es':''));
-    if(_pagos)partes.push(_pagos+' pago'+(    _pagos>1?'s':''));
-    if(_pdfs)partes.push(_pdfs+' PDF'+(       _pdfs>1?'s':''));
     const tokenHint=!API_TOKEN
       ? ' · <span style="text-decoration:underline;cursor:pointer;font-weight:800" onclick="abrirToken()">⚠️ Sin token — configúralo aquí</span>'
       : '';
-    msg.innerHTML='🔄 <b>Enviando: '+partes.join(', ')+'</b>'+tokenHint+' — Los datos no se perderán aunque cierres la app.';
+    msg.innerHTML='🔄 <b>Subiendo…</b>'+tokenHint+' Los datos no se perderán aunque cierres la app.';
   } else {
     // Online y sin pendientes: revisar si el catálogo lleva más de 3 horas sin actualizarse
     const tsNum=parseInt(localStorage.getItem('gs_sync_ts')||'0',10);
@@ -1472,6 +1476,8 @@ function actualizarUltimaSync(){actualizarPanelConexion();}
 
 let _ultimaRevisionExcepciones=0;
 async function heartbeat(){
+  if(_hbEnCurso)return;
+  _hbEnCurso=true;
   _chequearAlmacenamiento(); // #6: avisa si la memoria del navegador se está llenando
   // Tablero de excepciones: cada 5 min alcanza (la conciliación server corre cada 30 min).
   if(Date.now()-_ultimaRevisionExcepciones>5*60*1000){
@@ -1479,10 +1485,17 @@ async function heartbeat(){
     _revisarExcepciones();
   }
   const url=getScriptUrl();
-  if(!url){setOnlineState(navigator.onLine);return;}
+  if(!url){
+    ESTADO_HEARTBEAT=_estadoHeartbeat({navegadorEnLinea:navigator.onLine,pingOk:navigator.onLine});
+    setOnlineState(navigator.onLine);
+    _hbEnCurso=false;
+    return;
+  }
   try{
     const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(),5000);
+    // La guarda _hbEnCurso evita traslapes, por eso se toleran 15 segundos para
+    // los arranques en frío conocidos de Apps Script sin falsos "sin conexión".
+    const t=setTimeout(()=>ctrl.abort(),15000);
     const r=await fetch(url,{
       method:'POST',
       headers:{'Content-Type':'text/plain'},
@@ -1490,7 +1503,11 @@ async function heartbeat(){
       signal:ctrl.signal
     });
     clearTimeout(t);
-    setOnlineState(r.ok||r.status===0);
+    ESTADO_HEARTBEAT=_estadoHeartbeat({navegadorEnLinea:navigator.onLine,pingOk:r.ok||r.status===0});
+    // Un ping fallido con navegador aún en línea es "servidor lento", no una
+    // desconexión del teléfono. Conservar la red permite mostrar el estado real
+    // y protege las colas de dinero de un falso cambio offline/online.
+    setOnlineState(ESTADO_HEARTBEAT!=='sin_conexion');
     // Mirar el cuerpo del ping ANTES de disparar las colas: un token incorrecto
     // responde HTTP 200 igual (r.ok=true) pero con {ok:false,error:'no autorizado'}
     // -- si no se revisa aquí, cada 10s se reintentan pagos/remisiones/PDF con el
@@ -1571,7 +1588,12 @@ async function heartbeat(){
         refrescarCatalogo(true);
       }
     }
-  }catch(e){setOnlineState(false);}
+  }catch(e){
+    ESTADO_HEARTBEAT=_estadoHeartbeat({navegadorEnLinea:navigator.onLine,pingOk:false});
+    // No vaciar colas durante una falla de servidor, pero tampoco mentir que el
+    // celular perdió señal. `isOnline` conserva la disponibilidad de red.
+    setOnlineState(ESTADO_HEARTBEAT!=='sin_conexion');
+  }finally{_hbEnCurso=false;}
 }
 
 // Pide almacenamiento PERSISTENTE: sin esto, el navegador puede borrar localStorage
@@ -1838,6 +1860,14 @@ const OPCIONES_ASESOR_TEL = {
   'Jose Gutierrez':  {tel:'', tel2:''},
   'Equipo SUMETEC':  {tel:'', tel2:''}
 };
+function _mostrarTelAsesor(selectId, destinoId){
+  const sel=document.getElementById(selectId), out=document.getElementById(destinoId);
+  const wrap=document.getElementById(destinoId+'_wrap');
+  if(!out||!wrap)return;
+  const tel=OPCIONES_ASESOR_TEL[sel?.value||'']||{};
+  const texto=[tel.tel,tel.tel2].filter(Boolean).join('  |  ');
+  out.textContent=texto; wrap.style.display=texto?'grid':'none';
+}
 // Condiciones de pago de la REMISIÓN (ya es una venta entregada).
 // La primera opción es '' (vacía) = SIN crédito → no aparece nada en el PDF.
 const OPCIONES_PAGO_REMISION   = ['','Crédito a 7 días','Crédito a 15 días','Crédito a 30 días'];
@@ -1872,9 +1902,11 @@ function _llenarDatalist(id,opciones){
 // Aplica TODAS las listas de arriba a sus menús. Se llama al cargar la app.
 function _poblarDropdowns(){
   _llenarSelect('d_asesor',OPCIONES_ASESOR);
+  _mostrarTelAsesor('d_asesor','d_asesor_tel');
   _llenarSelect('d_pago',OPCIONES_PAGO_REMISION);
   _llenarSelect('cot_d_pago',OPCIONES_PAGO_COTIZACION);
   _llenarSelect('cot_d_asesor',OPCIONES_ASESOR);
+  _mostrarTelAsesor('cot_d_asesor','cot_d_asesor_tel');
   // 2026-09-10 (hallazgo 2): placeholder vacío en vez de arrancar en "Efectivo" --
   // que el vendedor elija a propósito, nunca por omisión.
   _llenarSelect('metodoAbono',OPCIONES_METODO_PAGO,'— Método de pago —');
@@ -3097,6 +3129,7 @@ function restore(data){
   const fb=document.getElementById('folioBadge');if(fb){fb.innerText=data.folio||'REM-0001';syncFolio(fb.innerText);}
   ['c_nombre','c_dir','c_cp','c_tel','c_rfc','c_email','c_contacto','c_persona_moral','d_asesor','obs'].forEach(f=>s(f,data[f]));
   s('d_pago',data.d_pago);s('descPct',data.descPct??0);
+  _mostrarTelAsesor('d_asesor','d_asesor_tel');
   // Restaurar el modo de redondeo guardado con la remisión (default: redondeado)
   _redondearRem=(data.redondear!==false);
   _syncBtnRedondeo();
@@ -3192,7 +3225,12 @@ async function registrarRemision(gpsParam){
     try{
       toast('Obteniendo folio…','loading',0);
       const ctrl=new AbortController();
-      const t=setTimeout(()=>ctrl.abort(),5000); // max 5s, si tarda más → offline
+      // 2026-09-11 (mismo hallazgo que heartbeat(), Miguel: "sí tengo internet"):
+      // 5s era muy corto. Esta llamada NO se repite sola cada 10s como el
+      // heartbeat -- si tarda, es la ÚNICA oportunidad antes de degradar la
+      // venta a folio temporal -- así que aquí sí vale la pena esperar hasta
+      // los ~15s que a veces tarda Apps Script, en vez de rendirse a los 5.
+      const t=setTimeout(()=>ctrl.abort(),15000); // máx 15s, si tarda más → offline
       const r=await fetch(url+'?tipo=reservar_folio',{signal:ctrl.signal,cache:'no-store'});
       clearTimeout(t);
       const d=await r.json();
@@ -3276,7 +3314,7 @@ async function sincronizarRemision(rem){
     total:rem.total,saldo:rem.saldo,estado:rem.estado,device:_deviceLabel_(),
     resetPagos:!!rem._resetPagos, // borrón y cuenta nueva: limpia pagos viejos de este folio en el servidor
     condicionesPago:(rem.data&&rem.data.d_pago)||'',
-    cotizacionOrigen:rem._cotizacionOrigen||'',
+    cotizacionOrigen:rem._cotizacionOrigen||'',origenVenta:rem.origen||'',
     items:_itemsERP(rem),subtotal:_tot.subtotal,descMonto:_tot.descMonto,ivaMonto:_tot.ivaMonto,ivaPct:_tot.ivaPct}; // #15: detalle+totales para el ERP
   try{
     console.log('→ POST al servidor:', body);
@@ -3394,7 +3432,7 @@ function _encolarRemision(rem){
     // no se subía. El servidor ya la lee (datos.condicionesPago); solo faltaba mandarla.
     condicionesPago:(rem.data&&rem.data.d_pago)||'',
     // 2026-07-14: solo presente si esta remisión vino de "Convertir a Remisión".
-    cotizacionOrigen:rem._cotizacionOrigen||'',
+    cotizacionOrigen:rem._cotizacionOrigen||'',origenVenta:rem.origen||'',
     items:_itemsERP(rem),subtotal:_tot.subtotal,descMonto:_tot.descMonto,ivaMonto:_tot.ivaMonto,ivaPct:_tot.ivaPct}; // #15
   if(idx>=0){ entrada._try=cola[idx]._try||0; cola[idx]=entrada; }
   else cola.push(entrada);
@@ -3691,6 +3729,16 @@ function _renderNegocio(){
       ? kpi('Ganancia bruta',fmt(s.gananciaActual.ganancia),'var(--green)')+kpi('Margen bruto',Math.round(s.gananciaActual.margen*1000)/10+'%','var(--green)')
       : kpi('Ganancia bruta','(sin detalle de artículos)');
     html+='</div>';
+    // MC-22: actividad reciente, no rentabilidad individual. Solo refleja los
+    // eventos que ya confirmó el servidor y conserva el detalle de negocio
+    // compartido sin convertirlo en un tablero de vigilancia.
+    if(Array.isArray(s.actividadDispositivos)){
+      const actividad=s.actividadDispositivos;
+      html+='<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--navy);margin:18px 0 8px">📱 Actividad reciente por dispositivo</div>';
+      html+=actividad.length
+        ? actividad.map(a=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:11.5px"><span style="min-width:0"><strong>${esc(a.device)}</strong> · ${esc(a.operacion||'Operación')}${a.resultado==='ERROR'?' <span style="color:#c0392b">⚠</span>':''}</span><span style="color:var(--muted);white-space:nowrap">${esc(a.fechaHora||'')}</span></div>`).join('')
+        : '<div style="font-size:11.5px;color:var(--muted)">Sin actividad remota registrada todavía.</div>';
+    }
     // Cotizaron y no han comprado (mejora 2026-07-05): lista accionable con
     // seguimiento por WhatsApp. Viene del servidor (últimos 30 días); si el
     // Apps Script aún es la versión vieja, simplemente no aparece.
@@ -4228,7 +4276,7 @@ async function abrirPagoRapido(id, folio, esLocal){
       if(d&&d.ok&&d.remision){
         rem={id:d.remision.id||id,folio:d.remision.folio||folio,
           cliente:d.remision.cliente||'',fecha:d.remision.fecha||'',total:+d.remision.total||0,
-          saldo:+d.remision.saldo||0,estado:d.remision.estado||'pendiente',
+          saldo:+d.remision.saldo||0,estado:d.remision.estado||'pendiente',origen:d.remision.origen||'',
           pagos:(d.pagos||[]).map(p=>({...p,_sync:true})),
           sincronizado:true,_remota:true,
           data:{folio:folio,c_nombre:d.remision.cliente||'',c_dir:'',c_cp:'',c_tel:'',d_asesor:'',d_pago:'',obs:'',descPct:0,items:[]}};
@@ -4248,7 +4296,6 @@ async function abrirPagoRapido(id, folio, esLocal){
   document.getElementById('prCliente').textContent=rem.cliente||'—';
   document.getElementById('prSaldo').textContent=fmt(rem.saldo||0)+' MXN';
   document.getElementById('prMonto').value='';
-  _actualizarPreviewMonto('prMonto','prMontoFmt');
   const _vbtn=document.getElementById('btnVerRemisionPago');if(_vbtn)_vbtn.style.display='none';
   const _cbtn=document.getElementById('btnConfirmarPagoRapido');if(_cbtn){_cbtn.style.display='';_cbtn.disabled=false;_cbtn.textContent='✅ Registrar pago';}
   const _op=document.getElementById('prObsPreview');if(_op)_op.style.display='none';
@@ -4257,12 +4304,11 @@ async function abrirPagoRapido(id, folio, esLocal){
 
 function prPonertotal(){
   const rem=remisiones.find(r=>String(r.id)===String(_prId)||r.folio===_prFolio);
-  if(rem)document.getElementById('prMonto').value=rem.saldo||0;
-  _actualizarPreviewMonto('prMonto','prMontoFmt');
+  if(rem){const inp=document.getElementById('prMonto');if(inp){inp.value=(rem.saldo||0).toFixed(2);_formatearMontoInput(inp);}}
 }
 
 async function confirmarPagoRapido(){
-  const monto=Math.round(parseFloat(document.getElementById('prMonto')?.value||0)*100)/100;
+  const monto=parseMonto(document.getElementById('prMonto')?.value||'');
   if(monto<=0){toast('Ingresa un monto válido','err');return;}
 
   const rem=remisiones.find(r=>String(r.id)===String(_prId)||r.folio===_prFolio);
@@ -4952,11 +4998,16 @@ function nuevaRem(){
 function _limpiarFormulario(){
   _desbloquearFormulario();
   items=[];
+  // MC-07: el pedido sugerido pertenece al cliente anterior; conservarlo al
+  // abrir una remisión nueva podía precargar artículos equivocados.
+  _precargaItems=[];
+  _actualizarBtnPrecarga('');
   ivaGlobal=0; // Bug 11: resetear IVA a 0 en cada nueva remisión
   document.querySelectorAll('.iva-opt').forEach(o=>o.classList.toggle('sel',parseInt(o.textContent)===0));
   const lbl=document.getElementById('ivaLbl');if(lbl)lbl.textContent='0%';
   ['c_nombre','c_dir','c_cp','c_tel','c_rfc','c_email','c_contacto','c_persona_moral','obs'].forEach(f=>{const el=document.getElementById(f);if(el)el.value='';});
   const da=document.getElementById('d_asesor');if(da)da.selectedIndex=0;
+  _mostrarTelAsesor('d_asesor','d_asesor_tel');
   const dp2=document.getElementById('d_pago');if(dp2)dp2.selectedIndex=0;
   const dc=document.getElementById('descPct');if(dc)dc.value='0';
   remActualId=null;_pagoPreparado=null;_cotOrigenPendiente=null;
@@ -5402,10 +5453,17 @@ async function refrescarCatalogo(silencioso){
     // catálogo se quedó en 0 productos" -- es "no hay nada que descargar todavía".
     // Antes esto sobrescribía silenciosamente un catálogo local bueno con uno
     // vacío y sellaba 'gs_sync' como si hubiera funcionado.
-    if(Array.isArray(jP)&&jP.length===0){
+    //
+    // 2026-09-11 (Miguel: "el ERP sí publicó, ¿por qué el Cotizador no lo ve?"):
+    // antes esto hacía `return` -- si productos.csv llegaba vacío por CUALQUIER
+    // motivo (incluida una carrera al publicar dos archivos casi a la vez), se
+    // abortaba TODO el refresh y el historial de precios/config/clientes que sí
+    // habían llegado bien en la MISMA respuesta se tiraban también. Ahora solo
+    // se conserva el catálogo local -- lo demás se aplica igual.
+    const catalogoVacio=Array.isArray(jP)&&jP.length===0;
+    if(catalogoVacio){
       console.warn('refrescarCatalogo: el ERP respondió 0 productos -- se conserva el catálogo local');
       if(!silencioso)toast('⚠️ El ERP todavía no ha publicado catálogo — se conserva el que ya tenías','warn',5500);
-      return;
     }
     // Ecosistema centralizado (2026-09): EMPRESA + IVA + FORMAS_PAGO. Nunca
     // truena si el ERP todavía no publicó nada (jCfg.datos llega {}).
@@ -5418,18 +5476,20 @@ async function refrescarCatalogo(silencioso){
       HISTORIAL_PRECIOS=_construirHistorialMap(jHP);
       localStorage.setItem('gs_hp',JSON.stringify([...HISTORIAL_PRECIOS]));
     }
-    PRODUCTOS=jP.map(p=>({clave:p.CODIGO||'',desc:p.DESCRIPCION||'',precio:+p.COSTO_CLIENTE||0,costo:+(p['COSTO PROVEEDOR']||p.COSTO_PROVEEDOR||p.COSTO||0),costoIva:+(p.COSTO_PROVEEDOR_IVA||0),iva:ivaGlobal})).filter(p=>p.clave);
-    // Mezclar con Productos Maestro: agrega solo los que NO están en el ERP (el ERP manda en precio)
-    if(Array.isArray(jPM)&&jPM.length){
-      const porClave=new Map(PRODUCTOS.map(p=>[p.clave.toLowerCase(),p]));
-      jPM.filter(p=>p.CODIGO).forEach(p=>{
-        const k=String(p.CODIGO).trim().toLowerCase();
-        if(!porClave.has(k)){
-          porClave.set(k,{clave:String(p.CODIGO).trim(),desc:String(p.DESCRIPCION||'').trim(),
-            precio:+(p.COSTO_CLIENTE||0),costo:+(p.COSTO_PROVEEDOR||0),costoIva:+(p.COSTO_PROVEEDOR_IVA||0),iva:ivaGlobal});
-        }
-      });
-      PRODUCTOS=[...porClave.values()];
+    if(!catalogoVacio){
+      PRODUCTOS=jP.map(p=>({clave:p.CODIGO||'',desc:p.DESCRIPCION||'',precio:+p.COSTO_CLIENTE||0,costo:+(p['COSTO PROVEEDOR']||p.COSTO_PROVEEDOR||p.COSTO||0),costoIva:+(p.COSTO_PROVEEDOR_IVA||0),iva:ivaGlobal})).filter(p=>p.clave);
+      // Mezclar con Productos Maestro: agrega solo los que NO están en el ERP (el ERP manda en precio)
+      if(Array.isArray(jPM)&&jPM.length){
+        const porClave=new Map(PRODUCTOS.map(p=>[p.clave.toLowerCase(),p]));
+        jPM.filter(p=>p.CODIGO).forEach(p=>{
+          const k=String(p.CODIGO).trim().toLowerCase();
+          if(!porClave.has(k)){
+            porClave.set(k,{clave:String(p.CODIGO).trim(),desc:String(p.DESCRIPCION||'').trim(),
+              precio:+(p.COSTO_CLIENTE||0),costo:+(p.COSTO_PROVEEDOR||0),costoIva:+(p.COSTO_PROVEEDOR_IVA||0),iva:ivaGlobal});
+          }
+        });
+        PRODUCTOS=[...porClave.values()];
+      }
     }
     // Clientes: ERP como base, Clientes Maestro como enriquecimiento (gana quien tiene más datos)
     // H-2: PERSONA_MORAL -- el ERP la publica (services/publicar.py::csv_clientes) desde
@@ -5466,7 +5526,7 @@ async function refrescarCatalogo(silencioso){
     localStorage.setItem('gs_cc',JSON.stringify(CLIENTES));
     localStorage.setItem('gs_sync',new Date().toLocaleString('es-MX'));
     localStorage.setItem('gs_sync_ts',String(Date.now())); // para calcular horas de desactualización
-    if(!silencioso)toast('Catálogo actualizado ✓ ('+PRODUCTOS.length+' productos · '+CLIENTES.length+' clientes)','ok');
+    if(!silencioso&&!catalogoVacio)toast('Catálogo actualizado ✓ ('+PRODUCTOS.length+' productos · '+CLIENTES.length+' clientes)','ok');
   }catch(e){ console.warn('refrescarCatalogo',e); }
 }
 
@@ -7032,6 +7092,13 @@ function _resolverRespuestaPago(r,pago,d){
     }
     if(pago){_dequeueByUUID(pago.uuid);_marcarPagoSync(pago.uuid);}
     if(typeof guardarEventoSync==='function')guardarEventoSync({folio:(r&&r.folio)||(pago&&pago.folio)||'',operacion:(pago&&pago.tipo==='anulacion')?'PAGO_ANULADO':'PAGO_GUARDADO',resultado:'OK'});
+    if(d.cajaPendiente){
+      if(typeof guardarEventoSync==='function')guardarEventoSync({folio:(r&&r.folio)||(pago&&pago.folio)||'',operacion:'CAJA_PENDIENTE',resultado:'ERROR',detalle:'El cobro quedó en cartera pero falta reflejarlo en caja.'});
+      toast('⚠️ Cobro guardado, pero falta reflejarlo en Caja. Reintenta la sincronización.','warn',8000);
+      // Mantener el mismo UUID en cola: el servidor no duplica el pago y vuelve
+      // a intentar solo el espejo de caja hasta que ambos registros coincidan.
+      return false;
+    }
     return true;
   }
   // ok:false
@@ -7295,6 +7362,11 @@ async function abrirTrazabilidad(folio){
     const alertasHtml=(t.alertas||[]).length
       ?t.alertas.map(a=>`<div style="font-size:11.5px;margin-top:3px;color:${a.severidad==='ALTA'?'#c0392b':'#8a6d00'}">${a.severidad==='ALTA'?'✕':'⚠'} ${a.tipo}: ${esc(a.detalle||'')}</div>`).join('')
       :'<div style="font-size:11.5px;margin-top:3px;color:var(--green)">✓ Sin alertas activas</div>';
+    const eventosServidorHtml=(t.eventos||[]).length
+      ?'<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)"><b>Actividad en servidor</b>'+t.eventos.slice(0,8).map(ev=>
+        `<div style="font-size:11.5px;margin-top:4px">${ev.resultado==='OK'?'✓':'✕'} ${esc(ev.operacion||'Evento')} — ${esc(ev.fechaHora||'')}${ev.device?' · '+esc(ev.device):''}${ev.detalle?' · '+esc(ev.detalle):''}</div>`
+      ).join('')+'</div>'
+      :'';
     body.innerHTML=`
       <div style="font-weight:800;color:var(--navy);margin-bottom:8px">${esc(t.folio||folio)}</div>
       <div>${_estadoIcono(!!t.remision)} Remisión: ${t.remision?'guardada en Sheets':'no encontrada'}</div>
@@ -7302,7 +7374,7 @@ async function abrirTrazabilidad(folio){
       <div>${_estadoIcono((t.pagos||[]).length>0?true:null)} Pagos: ${(t.pagos||[]).length} registrado(s)</div>
       <div>${_estadoIcono(t.erp)} ERP: ${t.erp?'exportado correcto':'no encontrado'}${t.erp?'':' <button class="btn" style="padding:2px 8px;font-size:11px;margin-left:6px" onclick="_reintentarERPFolio(\''+escAttr(folio)+'\')">🔄 Reintentar</button>'}</div>
       <div style="margin-top:6px"><b>Alertas</b>${alertasHtml}</div>
-    `+localHtml;
+    `+eventosServidorHtml+localHtml;
   }catch(e){
     body.innerHTML='<div style="color:#c0392b">✕ Error de red consultando el servidor. Reintenta.</div>'+localHtml;
   }
@@ -7599,11 +7671,23 @@ function borrarFirma(){
   autosave();
 }
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+// MC-23: Pago rápido usa el mismo formato y parser probado que Cobro. El cursor
+// queda al final, coherente con el campo de abono (se captura de un tirón).
+function _formatearMontoInput(inp){
+  if(!inp)return;
+  const antes=inp.value;
+  const formateado=formatearMontoTexto(antes);
+  if(formateado!==antes){
+    inp.value=formateado;
+    try{inp.setSelectionRange(formateado.length,formateado.length);}catch(_){}
+  }
+}
 // ── Preview de dinero en vivo (doc COTIZADOR.docx, 2026-09-10) ────────────────
 // "El total no tiene comas ni signo de pesos en la casilla para poner el monto."
 // Los inputs de monto siguen siendo type="number" (así ningún parseFloat en el
 // código se topa con "$1,234.56" y lee mal) -- esto solo pinta abajo, en vivo,
 // cómo se va a leer ese número, con $ y comas de verdad (misma fmt() del Total).
+// Sigue usándose en "Monto a abonar" (montoAbono) -- ver _onInputMontoAbono.
 function _actualizarPreviewMonto(inputId,previewId){
   const inp=document.getElementById(inputId), prev=document.getElementById(previewId);
   if(!inp||!prev)return;
@@ -7811,7 +7895,8 @@ async function popupPrompt(mensaje,valorDefault,titulo){
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
         Detalles de la Cotización
       </div>
-      <div class="fr"><span class="fl">Asesor</span><div class="fv"><select id="cot_d_asesor" onchange="autosaveCot()"><!-- opciones desde CONFIG: OPCIONES_ASESOR --></select></div></div>
+      <div class="fr"><span class="fl">Asesor</span><div class="fv"><select id="cot_d_asesor" onchange="_mostrarTelAsesor('cot_d_asesor','cot_d_asesor_tel');autosaveCot()"><!-- opciones desde CONFIG: OPCIONES_ASESOR --></select></div></div>
+      <div class="fr" id="cot_d_asesor_tel_wrap" style="display:none"><span class="fl">Tel. asesor</span><div class="fv" id="cot_d_asesor_tel"></div></div>
       <div class="fr"><span class="fl">Condiciones de pago</span><div class="fv"><select id="cot_d_pago" onchange="autosaveCot()"><!-- opciones desde CONFIG: OPCIONES_PAGO_COTIZACION --></select></div></div>
       <div class="fr"><span class="fl">Entrega estimada</span><div class="fv"><input id="cot_d_entrega" type="text" placeholder="2 a 3 días hábiles" oninput="autosaveCot()"></div></div>
       <div class="fr"><span class="fl">Lugar de entrega</span><div class="fv"><input id="cot_d_lugar" type="text" placeholder="Almacén del cliente" list="cot_lugarOpts" oninput="autosaveCot()"><datalist id="cot_lugarOpts"><!-- opciones desde CONFIG: OPCIONES_LUGAR_ENTREGA --></datalist></div></div>
@@ -8338,6 +8423,7 @@ function restoreCotDraft(d){
   if(fb&&d.folio){fb.innerText=d.folio;syncFolioCot(d.folio);}
   ['c_nombre','c_rfc','c_dir','c_cp','c_tel','c_contacto','c_email',
    'd_asesor','d_pago','d_entrega','d_lugar','obs'].forEach(f=>sv('cot_'+f,d[f]));
+  _mostrarTelAsesor('cot_d_asesor','cot_d_asesor_tel');
   if(d.descPct!=null){const dp=document.getElementById('cot_descPct');if(dp)dp.value=d.descPct;}
   if(d.ivaGlobal!=null)setIvaGlobalCot(+d.ivaGlobal);
   _cotItems=(d.items||[]).map(it=>({...it,_id:++_cotId}));
