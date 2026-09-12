@@ -7119,6 +7119,23 @@ function _limpiarFallaERP(id){
 function _reintentarERP(){
   _fallasERP().forEach(f=>{ const r=remisiones.find(x=>String(x.id)===String(f.id)); if(r) sincronizarRemision(r); });
 }
+// Reintento dirigido a UN folio desde la ventana de Trazabilidad -- a
+// diferencia de _reintentarERP() (arriba), no depende de que el folio siga
+// en fallas_erp (esa lista es local a este dispositivo y se pudo perder si
+// se limpió caché, o Miguel está revisando la trazabilidad desde otro
+// aparato del que salió la venta). Busca directo en el historial local por
+// folio y, si lo encuentra, reenvía igual que un reintento normal.
+async function _reintentarERPFolio(folio){
+  const r=remisiones.find(x=>String(x.folio)===String(folio));
+  if(!r){
+    toast('No encontré "'+folio+'" en el historial de este dispositivo -- ábrela desde el aparato donde se hizo la venta.','err',6000);
+    return;
+  }
+  if(!isOnline){ toast('Sin conexión -- reintenta cuando tengas señal.','err',5000); return; }
+  toast('Reenviando '+folio+' al ERP…',3000);
+  await sincronizarRemision(r);
+  abrirTrazabilidad(folio);
+}
 
 // Contador SIEMPRE visible: muestra "✓ Al día" en verde, o "⚠️ N sin enviar" en naranja.
 // Cuenta las 6 colas de envío. Toca → pantalla Estado. MC-06: las fallas del ERP
@@ -7281,7 +7298,7 @@ async function abrirTrazabilidad(folio){
       <div>${_estadoIcono(!!t.remision)} Remisión: ${t.remision?'guardada en Sheets':'no encontrada'}</div>
       <div>${_estadoIcono(t.pdf)} PDF Drive: ${t.pdf?'guardado correcto':'no encontrado'}</div>
       <div>${_estadoIcono((t.pagos||[]).length>0?true:null)} Pagos: ${(t.pagos||[]).length} registrado(s)</div>
-      <div>${_estadoIcono(t.erp)} ERP: ${t.erp?'exportado correcto':'no encontrado'}</div>
+      <div>${_estadoIcono(t.erp)} ERP: ${t.erp?'exportado correcto':'no encontrado'}${t.erp?'':' <button class="btn" style="padding:2px 8px;font-size:11px;margin-left:6px" onclick="_reintentarERPFolio(\''+escAttr(folio)+'\')">🔄 Reintentar</button>'}</div>
       <div style="margin-top:6px"><b>Alertas</b>${alertasHtml}</div>
     `+localHtml;
   }catch(e){
