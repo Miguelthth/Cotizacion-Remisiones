@@ -4998,6 +4998,8 @@ function abrirEmpresa(){
   const elV=document.getElementById('e_vendedor');if(elV)elV.value=empresaOverride.vendedor||'';
   applyLogoH(empresa.logoH||150);
   _pintarUltimoRespaldo();
+  _mostrarVersionInstalada(); // #version-deploy/#ultima-actualizacion viven en ESTE modal (Mi empresa),
+  // no en "⚙️ Configuración" -- antes solo se llenaban si primero se abría Configuración.
   document.getElementById('ovEmpresa').classList.add('open');
 }
 function guardarEmpresa(){
