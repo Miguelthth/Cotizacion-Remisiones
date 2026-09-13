@@ -3,12 +3,12 @@
   "short_name": "Remisiones",
   "start_url": "./remision.html",
   "display": "standalone",
-  "background_color": "#0B2D4A",
-  "theme_color": "#0B2D4A",
+  "background_color": "#F7FAFB",
+  "theme_color": "#023561",
   "icons": [
     {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
+      "src": "./logos/sumetec-remisiones.png",
+      "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any maskable"
     }

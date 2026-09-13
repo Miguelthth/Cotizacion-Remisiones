@@ -1,0 +1,7 @@
+#sumetecActualizacion{display:none;position:fixed;inset:0;z-index:2147483647;align-items:center;justify-content:center;padding:24px;background:rgba(11,45,74,.96);color:#fff;text-align:center;pointer-events:all}
+#sumetecActualizacion.activo{display:flex}
+#sumetecActualizacion .sumetec-actualizacion-tarjeta{max-width:330px}
+#sumetecActualizacion .sumetec-engranaje{display:block;font-size:54px;line-height:1;margin-bottom:20px;animation:sumetec-girar 1.1s linear infinite}
+#sumetecActualizacion strong{display:block;font-size:19px;margin-bottom:8px}
+#sumetecActualizacion p{margin:0;color:rgba(255,255,255,.76);font-size:14px}
+@keyframes sumetec-girar{to{transform:rotate(360deg)}}

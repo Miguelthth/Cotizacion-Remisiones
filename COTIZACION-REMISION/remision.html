@@ -34,12 +34,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SUMETEC – Remisiones</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0B2D4A">
+<link rel="icon" href="logos/sumetec-remisiones.png" type="image/png">
+<meta name="theme-color" content="#023561">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Remisiones">
-<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="apple-touch-icon" href="logos/sumetec-remisiones.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -451,6 +452,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 <script src="./calculos.js"></script>
 <script src="./sync_audit.js"></script>
 <script src="./version.js"></script>
+<link rel="stylesheet" href="./actualizacion.css">
 </head>
 <body>
 <div class="tb no-print">
@@ -9260,72 +9262,9 @@ function _cotEstadoBadge(entry){
 document.addEventListener('DOMContentLoaded',()=>{ setTimeout(_actualizarBadgeCot,1000); });
 </script>
 
-<script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('./sw.js')
-    .then(reg => {
-      // El navegador solo revisa sw.js por su cuenta cada ~24h. Sin este chequeo
-      // activo, una PWA abierta desde el ícono de inicio (sin recarga completa de
-      // Chrome/Safari) puede tardar horas o días en notar que hay versión nueva —
-      // de ahí el "hay que borrar caché y quitar del home" que reportaba Miguel.
-      const _revisar=()=>reg.update().catch(()=>{});
-      setInterval(_revisar,5*60*1000);
-      document.addEventListener('visibilitychange',()=>{
-        if(document.visibilityState==='visible')_revisar();
-      });
-      window.addEventListener('online',_revisar);
-    })
-    .catch(e => console.warn('SW:', e));
-  // Cuando un SW nuevo toma control (deploy de versión), recargar UNA vez para
-  // garantizar que ambos teléfonos corran el HTML actualizado y no el cacheado.
-  let _swRecargado=false;
-  let _huboControlador=!!navigator.serviceWorker.controller; // ¿ya había SW al cargar?
-  const _modalesCobro=['ovPagoRapido','ovCancelar','ovAnular','ovFirma'];
-  const _modalOcupado=()=>_modalesCobro.some(id=>document.getElementById(id)?.classList.contains('open'));
-  // M-13 (auditoría de robustez 2026-09-10): la recarga por actualización solo
-  // esperaba a que se cerraran esos 3-4 modales de cobro/cancelación/firma -- no
-  // protegía CUALQUIER captura en curso. Un formulario de remisión o cotización a
-  // medio llenar, o un campo de texto con algo escrito, se recargaban igual y se
-  // perdía lo que no se había guardado. Ahora se revisa TODO lo que pueda perderse.
-  function _hayCapturaEnCurso(){
-    if(_modalOcupado())return true;
-    // Foco en un campo con contenido: algo se está escribiendo ahora mismo.
-    const ae=document.activeElement;
-    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA')&&String(ae.value||'').trim())return true;
-    // Formulario de REMISIÓN con datos que todavía no se registraron.
-    try{
-      if(typeof _modoEdicion!=='undefined'&&_modoEdicion)return true; // editando una existente
-      const nombreRem=(document.getElementById('c_nombre')?.value||'').trim();
-      const itemsRem=(typeof items!=='undefined'?items:[]).some(it=>it&&(it.clave||it.desc||(+it.qty>0)||(+it.precio>0)));
-      if(typeof remActualId!=='undefined'&&!remActualId&&(nombreRem||itemsRem))return true;
-    }catch(_){}
-    // Formulario de COTIZACIÓN con datos que todavía no se generaron.
-    try{
-      if(typeof _enModoCotizacion==='function'&&_enModoCotizacion()){
-        const nombreCot=(document.getElementById('cot_c_nombre')?.value||'').trim();
-        const itemsCot=(typeof _cotItems!=='undefined'?_cotItems:[]).some(it=>it&&(it.clave||it.desc||(+it.qty>0)||(+it.precio>0)));
-        if(nombreCot||itemsCot)return true;
-      }
-    }catch(_){}
-    return false;
-  }
-  navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(_swRecargado)return;
-    // Primera reclamación (instalación inicial): NO recargar — evita el parpadeo de primera visita.
-    if(!_huboControlador){ _huboControlador=true; return; }
-    localStorage.setItem('rem_ultima_actualizacion', String(Date.now()));
-    // Si hay cualquier captura en curso, diferir la recarga hasta que se libere.
-    if(_hayCapturaEnCurso()){
-      try{toast('Nueva versión lista — se aplicará al terminar','ok',4000);}catch(_){}
-      const iv=setInterval(()=>{
-        if(!_hayCapturaEnCurso()){clearInterval(iv);_swRecargado=true;location.reload();}
-      },1500);
-      return;
-    }
-    _swRecargado=true; location.reload();
-  });
-}
-</script>
+<div id="sumetecActualizacion" role="status" aria-live="assertive" aria-label="Actualizando SUMETEC"><div class="sumetec-actualizacion-tarjeta"><span class="sumetec-engranaje" aria-hidden="true">⚙️</span><strong>Actualizando SUMETEC</strong><p>Espera un momento. Tus datos se conservarán.</p></div></div>
+<script src="./actualizacion.js"></script>
+<script>iniciarActualizaciones().catch(e=>console.warn('SW:',e));</script>
 <script>
 /* ── Accesibilidad: nombres accesibles para controles solo-icono ──────────────
    Asigna aria-label por selector en un solo lugar (DRY) en vez de marcar 6.000

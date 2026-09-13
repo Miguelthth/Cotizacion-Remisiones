@@ -1,4 +1,4 @@
-const CACHE = 'sumetec-rem-27d1c22752';
+const CACHE = 'sumetec-rem-9b41dc1a24';
 const PREFIJO = 'sumetec-rem-';
 // Assets pesados (jsPDF ~400 KB) en su PROPIA caché, versionada aparte del shell.
 // Antes vivían dentro de CACHE: como ese nombre es un hash del shell, cambiar una
@@ -8,11 +8,9 @@ const PREFIJO = 'sumetec-rem-';
 const CACHE_ASSETS = 'sumetec-rem-assets-jspdf251';
 const PREFIJO_ASSETS = 'sumetec-rem-assets-';
 const STATIC = [
-  './remision.html',
-  './calculos.js',
-  './sync_audit.js',
   './version.js'
 ];
+const MANIFIESTO_PRECACHE = './precache-manifest.json';
 // H5: jsPDF servido LOCAL (vendor/) → los PDF funcionan sin internet y sin depender
 // de un CDN externo. Las URLs del CDN quedan como respaldo (la app las usa solo si
 // el archivo local falla; si llegan a pedirse, también se cachean).
@@ -36,8 +34,13 @@ const ASSETS = [
 // explícitamente, sin perder la tolerancia a fallos de CDN de arriba.
 async function precachearShell() {
   const cache = await caches.open(CACHE);
+  const respuesta = await fetch(MANIFIESTO_PRECACHE, { cache: 'reload' });
+  if (!respuesta.ok) throw new Error('no se pudo leer precache-manifest.json');
+  const manifiesto = await respuesta.json();
+  if (!Array.isArray(manifiesto.files)) throw new Error('precache-manifest.json inválido');
+  const rutas = [...new Set([MANIFIESTO_PRECACHE, ...STATIC, ...manifiesto.files.map(ruta => './' + ruta)])];
   let faltante = false;
-  await Promise.allSettled(STATIC.map(async (url) => {
+  await Promise.allSettled(rutas.map(async (url) => {
     try {
       const resp = await fetch(url, { cache: 'reload' });
       // Hallazgo 4 (auditoría Cotizador, 2026-09-10): fetch() NO lanza en un 404/500 --
@@ -87,11 +90,7 @@ async function precachearAssets() {
 // que un CDN caído no impida instalar una versión nueva del shell — jsPDF se baja
 // después, en el primer fetch que lo pida.
 self.addEventListener('install', e => {
-  e.waitUntil(
-    precachearShell()
-      .then(() => precachearAssets())
-      .then(() => self.skipWaiting())
-  );
+  e.waitUntil(precachearShell().then(() => precachearAssets()));
 });
 
 // Activar: limpiar cachés viejos DE ESTA APP. CacheStorage es por ORIGEN, no
@@ -104,16 +103,19 @@ self.addEventListener('install', e => {
 // PRIMERO -- si no, cada deploy del shell borraría justo lo que el punto 7
 // intenta conservar.
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(k => {
-          if (k.startsWith(PREFIJO_ASSETS)) return k !== CACHE_ASSETS;
-          return k.startsWith(PREFIJO) && k !== CACHE;
-        }).map(k => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil(self.clients.claim());
+});
+
+// La página sólo llega aquí después de guardar su captura. Mantener la caché
+// anterior hasta CONFIRMAR_ARRANQUE permite recuperar recursos si el arranque falla.
+self.addEventListener('message', e => {
+  if(e.data?.type === 'ACTIVAR_ACTUALIZACION') self.skipWaiting();
+  if(e.data?.type === 'CONFIRMAR_ARRANQUE') {
+    e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => {
+      if(k.startsWith(PREFIJO_ASSETS)) return k !== CACHE_ASSETS;
+      return k.startsWith(PREFIJO) && k !== CACHE;
+    }).map(k => caches.delete(k)))));
+  }
 });
 
 self.addEventListener('fetch', e => {
@@ -138,6 +140,52 @@ self.addEventListener('fetch', e => {
           return r;
         })
         .catch(() => caches.match('./remision.html'))
+    );
+    return;
+  }
+
+  // version.js: RED PRIMERO, caché como fallback (2026-09-12).
+  // Es el único archivo del shell que NO entra en el hash del CACHE --
+  // build_deploy.py lo excluye a propósito porque lleva la hora del build, así que
+  // incluirlo haría que el hash cambiara en cada corrida y nunca se estabilizara.
+  // Servido caché-primero como el resto del shell, esa exclusión tenía una
+  // consecuencia fea: un deploy que solo cambia version.js (mismo CACHE, sw.js
+  // idéntico byte a byte -> el navegador no instala nada) era INVISIBLE en el
+  // celular, y la pantalla "Act. software" seguía mostrando la fecha vieja para
+  // siempre. O sea: justo la pantalla con la que se verifica si la actualización
+  // llegó era la que no se podía actualizar -- de ahí el "no se actualiza desde
+  // ayer a las 11 pm" con el service worker haciendo su trabajo bien.
+  // Red primero lo arregla sin reintroducir la circularidad del hash. Se pide con
+  // { cache: 'reload' } por la misma razón del punto 4 del checklist: sin eso,
+  // GitHub Pages puede entregar la copia vieja de la caché HTTP del navegador.
+  if (/\/version\.js(\?|$)/.test(url)) {
+    e.respondWith(
+      fetch(url, { cache: 'reload' })
+        .then(r => {
+          if (r.ok) {
+            const clone = r.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
+          }
+          return r;
+        })
+        // Sin señal: la última copia guardada. Si tampoco está, que falle el
+        // fetch y no una excepción del SW -- version.js solo alimenta la etiqueta
+        // de versión en pantalla, nunca un cálculo de dinero.
+        .catch(() => caches.match(e.request).then(r => r || caches.match('./version.js')))
+    );
+    return;
+  }
+
+  // release.json decide si hay un worker nuevo; se consulta por red y sólo usa
+  // una copia anterior como respaldo cuando no hay señal.
+  if (/\/release\.json(\?|$)/.test(url)) {
+    e.respondWith(
+      fetch(url, { cache: 'reload' })
+        .then(r => {
+          if(r.ok) caches.open(CACHE).then(c => c.put(e.request, r.clone())).catch(()=>{});
+          return r;
+        })
+        .catch(() => caches.match(e.request).then(r => r || caches.match('./release.json')))
     );
     return;
   }
